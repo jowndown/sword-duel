@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>PeerJS 2人対戦テスト</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <style>
+      :root{
+        --bg:#f2efe9;
+        --panel:#ffffff;
+        --panel-2:#faf7f1;
+        --ink:#23201b;
+        --ink-soft:#6b6459;
+        --line:#ddd5c7;
+        --teal:#0e7c74;
+        --teal-bright:#17a398;
+        --amber:#d98a16;
+        --amber-bright:#f2a93b;
+        --red:#d64541;
+        --ok:#1d9e6c;
+        --stage:#141a22;
+        --shadow:0 10px 28px rgba(35,32,27,.10);
+      }
+      @media (prefers-color-scheme: dark){
+        :root{
+          --bg:#101216;
+          --panel:#1a1d23;
+          --panel-2:#20242c;
+          --ink:#f0ede6;
+          --ink-soft:#a49d90;
+          --line:#333842;
+          --shadow:0 10px 28px rgba(0,0,0,.35);
+        }
+      }
+      *{ box-sizing:border-box; }
+      html,body{ margin:0; padding:0; }
+      body{
+        background:var(--bg);
+        color:var(--ink);
+        font-family:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Hiragino Sans",system-ui,sans-serif;
+        -webkit-text-size-adjust:100%;
+      }
+      button, input{ font-family:inherit; }
+      button{ min-height:44px; cursor:pointer; }
+      .wrap{ max-width:1020px; margin:0 auto; padding:14px 14px 28px; }
+
+      /* ---------- status strip ---------- */
+      .statusbar{
+        display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px;
+        background:var(--panel); border:1px solid var(--line); border-radius:14px;
+        padding:10px 14px; box-shadow:var(--shadow);
+      }
+      .dot{ width:11px; height:11px; border-radius:50%; background:#b6ad9c; flex:none; }
+      .dot.on{ background:var(--ok); box-shadow:0 0 0 4px rgba(29,158,108,.18); }
+      .dot.wait{ background:var(--amber-bright); box-shadow:0 0 0 4px rgba(242,169,59,.18); }
+      .dot.err{ background:var(--red); }
+      #statusText{ font-weight:800; font-size:15px; }
+      .status-sub{ color:var(--ink-soft); font-size:12.5px; font-weight:500; }
+      .status-right{ margin-left:auto; display:flex; align-items:center; gap:10px; }
+      .ping{ font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-soft); }
+      .ping b{ color:var(--ink); }
+
+      /* ---------- lobby ---------- */
+      .lobby{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-top:12px; }
+      @media (max-width:760px){ .lobby{ grid-template-columns:1fr; } }
+      .card{
+        background:var(--panel); border:1px solid var(--line); border-radius:14px;
+        padding:16px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:10px;
+        min-width:0;
+      }
+      .card h2{ margin:0; font-size:16px; font-weight:800; display:flex; align-items:center; gap:8px; }
+      .card p{ margin:0; font-size:13px; line-height:1.65; color:var(--ink-soft); font-weight:500; }
+      .chip{
+        display:inline-flex; align-items:center; justify-content:center;
+        width:26px; height:26px; border-radius:8px; color:#fff; font-size:13px; font-weight:800; flex:none;
+      }
+      .chip.host{ background:var(--teal); } .chip.guest{ background:var(--amber); } .chip.solo{ background:#5b6470; }
+      .btn{
+        border:none; border-radius:10px; padding:10px 16px;
+        font-size:15px; font-weight:800; color:#fff; background:var(--teal);
+        transition:transform .06s ease, filter .15s ease;
+      }
+      .btn:hover{ filter:brightness(1.07); } .btn:active{ transform:scale(.98); }
+      .btn.amber{ background:var(--amber); }
+      .btn.ghost{ background:var(--panel-2); color:var(--ink); border:1.5px solid var(--line); }
+      .btn:disabled{ opacity:.45; cursor:not-allowed; transform:none; }
+      .codebox{
+        display:none; align-items:center; gap:10px; background:var(--panel-2);
+        border:1.5px dashed var(--line); border-radius:10px; padding:8px 10px 8px 14px;
+      }
+      .codebox.show{ display:flex; }
+      .codebox .code{
+        font-family:"IBM Plex Mono",monospace; font-size:30px; font-weight:700;
+        letter-spacing:.22em; color:var(--ink);
+      }
+      .codebox .copy{ margin-left:auto; min-height:40px; padding:6px 14px; font-size:13px; }
+      .joinrow{ display:flex; gap:8px; }
+      .joinrow input{
+        flex:1 1 0; min-width:0; width:0; min-height:44px; border:1.5px solid var(--line); border-radius:10px;
+        background:var(--panel-2); color:var(--ink); padding:8px 12px;
+        font-family:"IBM Plex Mono",monospace; font-size:20px; font-weight:700;
+        letter-spacing:.2em; text-transform:uppercase; text-align:center;
+      }
+      .joinrow input:focus{ outline:2px solid var(--amber-bright); outline-offset:1px; }
+      .note{ font-size:12px; color:var(--ink-soft); line-height:1.6; }
+
+      /* ---------- stage ---------- */
+      .stage-wrap{ margin-top:14px; position:relative; }
+      .hud{
+        display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;
+        margin-bottom:8px;
+      }
+      .fighter-hud{ min-width:0; }
+      .fighter-hud.right{ text-align:right; }
+      .fname{ font-size:13px; font-weight:800; display:flex; align-items:center; gap:7px; }
+      .fighter-hud.right .fname{ flex-direction:row-reverse; }
+      .tag{ font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:99px; color:#fff; }
+      .tag.me{ background:var(--teal); } .tag.rival{ background:#5b6470; }
+      .tag.cpu{ background:#8a6d1f; }
+      .hpbar{
+        margin-top:5px; height:16px; border-radius:8px; background:var(--panel);
+        border:1px solid var(--line); overflow:hidden; position:relative;
+      }
+      .fighter-hud.right .hpbar{ transform:scaleX(-1); }
+      .hpfill{ height:100%; width:100%; border-radius:8px; transition:width .18s ease; }
+      .hpfill.p1{ background:linear-gradient(90deg,#0e7c74,#2bb3a3); }
+      .hpfill.p2{ background:linear-gradient(90deg,#d98a16,#f2a93b); }
+      .hpfill.low{ background:linear-gradient(90deg,#c0392b,#e2574c) !important; }
+      .hpnum{ font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-soft); margin-top:3px; }
+      .vs{
+        font-family:"IBM Plex Mono",monospace; font-weight:700; font-size:13px; color:var(--ink-soft);
+        background:var(--panel); border:1px solid var(--line); border-radius:99px; padding:5px 12px; white-space:nowrap;
+      }
+      .stage{
+        position:relative; border-radius:16px; overflow:hidden; background:var(--stage);
+        border:1px solid var(--line); box-shadow:var(--shadow);
+      }
+      canvas{ display:block; width:100%; height:auto; touch-action:none; }
+      .banner{
+        position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+        flex-direction:column; gap:12px; background:rgba(10,13,18,.62); text-align:center; padding:20px;
+      }
+      .banner.show{ display:flex; }
+      .banner .big{ font-size:clamp(28px,6vw,46px); font-weight:800; color:#fff; letter-spacing:.04em; }
+      .banner .small{ color:#cfd6de; font-size:14px; font-weight:500; }
+      .banner .btn{ min-width:170px; }
+      .count-num{
+        position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+        font-size:clamp(60px,14vw,110px); font-weight:800; color:#fff;
+        text-shadow:0 6px 30px rgba(0,0,0,.55); pointer-events:none;
+        font-family:"IBM Plex Mono",monospace;
+      }
+      .count-num.show{ display:flex; }
+
+      /* ---------- touch controls ---------- */
+      .touch{
+        display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin-top:12px;
+      }
+      .tcluster{ display:flex; gap:10px; }
+      .tbtn{
+        width:64px; height:64px; border-radius:50%; border:1.5px solid var(--line);
+        background:var(--panel); color:var(--ink); font-size:22px; font-weight:800;
+        box-shadow:var(--shadow); user-select:none; -webkit-user-select:none; touch-action:none;
+        display:flex; align-items:center; justify-content:center;
+      }
+      .tbtn:active, .tbtn.held{ background:var(--panel-2); transform:scale(.95); }
+      .tbtn.atk{ width:76px; height:76px; background:var(--amber); border-color:var(--amber); color:#fff; font-size:16px; }
+      .tbtn.jump{ background:var(--teal); border-color:var(--teal); color:#fff; font-size:14px; }
+      @media (min-width:900px){ .touch{ opacity:.85; } }
+
+      .help{
+        margin-top:14px; background:var(--panel); border:1px solid var(--line); border-radius:14px;
+        padding:14px 16px; box-shadow:var(--shadow);
+        display:grid; grid-template-columns:1fr 1fr; gap:6px 22px;
+      }
+      @media (max-width:640px){ .help{ grid-template-columns:1fr; } }
+      .help h3{ grid-column:1/-1; margin:0 0 4px; font-size:14px; font-weight:800; }
+      .help div{ font-size:13px; color:var(--ink-soft); font-weight:500; line-height:1.7; }
+      kbd{
+        font-family:"IBM Plex Mono",monospace; font-size:11.5px; background:var(--panel-2);
+        border:1px solid var(--line); border-bottom-width:2.5px; border-radius:6px; padding:1px 6px; color:var(--ink);
+      }
+      .log{
+        margin-top:12px; font-family:"IBM Plex Mono",monospace; font-size:11.5px; line-height:1.8;
+        color:var(--ink-soft); background:var(--panel); border:1px solid var(--line); border-radius:12px;
+        padding:10px 14px; max-height:118px; overflow:auto; white-space:pre-wrap; word-break:break-all;
+      }
+      .log:empty{ display:none; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+
+      <div class="statusbar">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">未接続</span>
+        <span class="status-sub" id="statusSub">部屋を作るか、コードを入れて参加してね</span>
+        <span class="status-right">
+          <span class="ping" id="pingBox" style="display:none">PING <b id="pingVal">–</b> ms</span>
+          <button class="btn ghost" id="disconnectBtn" style="display:none; min-height:38px; padding:6px 14px; font-size:13px;">切断する</button>
+        </span>
+      </div>
+
+      <div class="lobby" id="lobby">
+        <section class="card">
+          <h2><span class="chip host">1</span>部屋を作る（ホスト）</h2>
+          <p>部屋コードが発行されるよ。そのコードを対戦相手に伝えて、相手が「参加する」を押せば接続完了。</p>
+          <button class="btn" id="hostBtn">部屋を作る</button>
+          <div class="codebox" id="codeBox">
+            <span class="code" id="roomCode">----</span>
+            <button class="btn ghost copy" id="copyBtn">コピー</button>
+          </div>
+          <span class="note">ホスト側のタブが対戦の進行役。閉じると対戦は終わるよ。</span>
+        </section>
+
+        <section class="card">
+          <h2><span class="chip guest">2</span>部屋に入る（ゲスト）</h2>
+          <p>ホストから聞いた4文字のコードを入力して参加。2台のスマホ／PCで別々に開いて試せるよ。</p>
+          <div class="joinrow">
+            <input id="joinInput" maxlength="4" size="4" placeholder="CODE" autocomplete="off" autocapitalize="characters" />
+            <button class="btn amber" id="joinBtn">参加する</button>
+          </div>
+          <span class="note">同じ端末で試すときは、別のブラウザ（またはシークレットウィンドウ）でもう1つ開いてね。同じタブ同士はつながらないよ。</span>
+        </section>
+
+        <section class="card">
+          <h2><span class="chip solo">3</span>1人で練習</h2>
+          <p>相手がいなくても操作感を試せる、CPUとの練習モード。オンライン接続前の動作チェックにも。</p>
+          <button class="btn ghost" id="soloBtn">CPUと練習する</button>
+          <span class="note">オンライン対戦中は押せないよ。切断すればまた押せる。</span>
+        </section>
+      </div>
+
+      <div class="stage-wrap">
+        <div class="hud">
+          <div class="fighter-hud">
+            <div class="fname"><span id="p1Name">プレイヤー1</span><span class="tag me" id="p1Tag" style="display:none">あなた</span></div>
+            <div class="hpbar"><div class="hpfill p1" id="hp1"></div></div>
+            <div class="hpnum">HP <span id="hpNum1">100</span> / 100</div>
+          </div>
+          <div class="vs" id="vsLabel">DUEL</div>
+          <div class="fighter-hud right">
+            <div class="fname"><span id="p2Name">プレイヤー2</span><span class="tag rival" id="p2Tag" style="display:none">相手</span></div>
+            <div class="hpbar"><div class="hpfill p2" id="hp2"></div></div>
+            <div class="hpnum">HP <span id="hpNum2">100</span> / 100</div>
+          </div>
+        </div>
+
+        <div class="stage">
+          <canvas id="game" width="960" height="540"></canvas>
+          <div class="count-num" id="countNum"></div>
+          <div class="banner" id="banner">
+            <div class="big" id="bannerTitle">対戦相手を待っています</div>
+            <div class="small" id="bannerText">上の部屋コードを相手に伝えてね</div>
+            <button class="btn" id="rematchBtn" style="display:none">もう一度たたかう</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="touch">
+        <div class="tcluster">
+          <button class="tbtn" id="btnLeft" aria-label="左へ移動">◀</button>
+          <button class="tbtn" id="btnRight" aria-label="右へ移動">▶</button>
+        </div>
+        <div class="tcluster">
+          <button class="tbtn jump" id="btnJump">ジャンプ</button>
+          <button class="tbtn atk" id="btnAtk">剣で斬る</button>
+        </div>
+      </div>
+
+      <div class="help">
+        <h3>遊び方・操作</h3>
+        <div>移動： <kbd>←</kbd><kbd>→</kbd> または <kbd>A</kbd><kbd>D</kbd> ／ 画面の ◀ ▶ ボタン</div>
+        <div>ジャンプ： <kbd>↑</kbd> / <kbd>W</kbd> / <kbd>Space</kbd> ／ ジャンプボタン</div>
+        <div>攻撃： <kbd>J</kbd> / <kbd>F</kbd> ／ 「剣で斬る」ボタン（剣の届く距離で当たる）</div>
+        <div>勝敗： 相手のHPを0にした方の勝ち。1発 = 20ダメージ（5発で決着）</div>
+        <div>接続の仕組み： PeerJS（WebRTC）でブラウザ同士が直接通信するから、アカウント登録や自前のサーバーは不要（接続の仲介には PeerJS の無料サーバーを使うよ）。ラグは回線次第。</div>
+        <div>注意： 相手の姿は約0.05秒ごとに送られてくる位置で補間表示している。動きがカクつくときは回線の影響が大きい。</div>
+      </div>
+
+      <div class="log" id="log"></div>
+    </div>
+
+<script>
+(function(){
+"use strict";
+
+/* ================= DOM ================= */
+var $ = function(id){ return document.getElementById(id); };
+var statusDot=$("statusDot"), statusText=$("statusText"), statusSub=$("statusSub");
+var hostBtn=$("hostBtn"), joinBtn=$("joinBtn"), soloBtn=$("soloBtn"), joinInput=$("joinInput");
+var codeBox=$("codeBox"), roomCodeEl=$("roomCode"), copyBtn=$("copyBtn");
+var disconnectBtn=$("disconnectBtn"), pingBox=$("pingBox"), pingVal=$("pingVal");
+var banner=$("banner"), bannerTitle=$("bannerTitle"), bannerText=$("bannerText"), rematchBtn=$("rematchBtn");
+var countNum=$("countNum"), logEl=$("log");
+var hp1El=$("hp1"), hp2El=$("hp2"), hpNum1=$("hpNum1"), hpNum2=$("hpNum2");
+var p1Name=$("p1Name"), p2Name=$("p2Name"), p1Tag=$("p1Tag"), p2Tag=$("p2Tag"), vsLabel=$("vsLabel");
+var canvas=$("game"), ctx=canvas.getContext("2d");
+
+function log(msg){
+  var t=new Date();
+  var hh=("0"+t.getHours()).slice(-2), mm=("0"+t.getMinutes()).slice(-2), ss=("0"+t.getSeconds()).slice(-2);
+  logEl.textContent += "["+hh+":"+mm+":"+ss+"] "+msg+"\n";
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function setStatus(mode, main, sub){
+  statusDot.className = "dot" + (mode ? " "+mode : "");
+  statusText.textContent = main;
+  if(sub !== undefined) statusSub.textContent = sub;
+}
+
+/* ================= Game constants ================= */
+var W=960, H=540, GROUND=452, GRAV=0.85;
+var FIGHTER_W=36, FIGHTER_H=76;
+var RANGE=86, DMG=20, MAXHP=100;
+
+/* ================= Fighters ================= */
+function makeFighter(x, color, dark, isP1){
+  return {
+    x:x, y:GROUND-FIGHTER_H, vx:0, vy:0, facing:isP1?1:-1,
+    hp:MAXHP, onGround:true, walkPhase:0, moving:false,
+    atkT:-1, atkHitDone:false, hurtT:0, dead:false,
+    color:color, dark:dark, isP1:isP1,
+    tx:x, ty:GROUND-FIGHTER_H, tfacing:isP1?1:-1, tAtk:-1, remote:false
+  };
+}
+var me   = makeFighter(210, "#17a398", "#0b5a54", true);
+var foe  = makeFighter(714, "#f2a93b", "#9a6206", false);
+
+/* mode: idle | solo | online ; role: host | guest */
+var mode="idle", role=null;
+var fighting=false, roundOver=false;
+var keys={};
+var cpuTimer=0, cpuDir=0, cpuAtkCd=0;
+
+/* ================= Audio (tiny synth) ================= */
+var AC=null;
+function beep(freq, dur, type, vol, slideTo){
+  try{
+    if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)();
+    if(AC.state==="suspended") AC.resume();
+    var o=AC.createOscillator(), g=AC.createGain();
+    o.type=type||"square"; o.frequency.setValueAtTime(freq, AC.currentTime);
+    if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, AC.currentTime+dur);
+    g.gain.setValueAtTime(vol||0.05, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime+dur);
+    o.connect(g); g.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime+dur);
+  }catch(e){}
+}
+function sfx(name){
+  if(name==="swing") beep(700,0.09,"sawtooth",0.035,180);
+  if(name==="hit")   beep(160,0.14,"square",0.07,60);
+  if(name==="jump")  beep(330,0.12,"square",0.03,560);
+  if(name==="win")  { beep(523,0.14,"square",0.05); setTimeout(function(){beep(659,0.14,"square",0.05);},130); setTimeout(function(){beep(784,0.24,"square",0.05);},260); }
+  if(name==="count") beep(440,0.09,"square",0.045);
+  if(name==="go")    beep(880,0.2,"square",0.06);
+}
+
+/* ================= HUD ================= */
+function refreshHUD(){
+  hp1El.style.width = Math.max(0, me.isP1?me.hp:foe.hp) + "%";
+  hp2El.style.width = Math.max(0, me.isP1?foe.hp:me.hp) + "%";
+  var leftHp  = me.isP1 ? me.hp : foe.hp;
+  var rightHp = me.isP1 ? foe.hp : me.hp;
+  hp1El.style.width = Math.max(0,leftHp)+"%";
+  hp2El.style.width = Math.max(0,rightHp)+"%";
+  hpNum1.textContent = Math.max(0,leftHp);
+  hpNum2.textContent = Math.max(0,rightHp);
+  hp1El.classList.toggle("low", leftHp<=40);
+  hp2El.classList.toggle("low", rightHp<=40);
+}
+function refreshNames(){
+  if(mode==="online"){
+    p1Name.textContent = role==="host" ? "プレイヤー1（ホスト）" : "プレイヤー1（ホスト）";
+    p2Name.textContent = "プレイヤー2（ゲスト）";
+    if(role==="host"){ p1Tag.style.display=""; p1Tag.textContent="あなた"; p1Tag.className="tag me";
+                       p2Tag.style.display=""; p2Tag.textContent="相手"; p2Tag.className="tag rival"; }
+    else { p1Tag.style.display=""; p1Tag.textContent="相手"; p1Tag.className="tag rival";
+           p2Tag.style.display=""; p2Tag.textContent="あなた"; p2Tag.className="tag me"; }
+    vsLabel.textContent="ONLINE";
+  } else if(mode==="solo"){
+    p1Name.textContent="プレイヤー1"; p2Name.textContent="CPU";
+    p1Tag.style.display=""; p1Tag.textContent="あなた"; p1Tag.className="tag me";
+    p2Tag.style.display=""; p2Tag.textContent="CPU"; p2Tag.className="tag cpu";
+    vsLabel.textContent="練習";
+  } else {
+    p1Name.textContent="プレイヤー1"; p2Name.textContent="プレイヤー2";
+    p1Tag.style.display="none"; p2Tag.style.display="none";
+    vsLabel.textContent="DUEL";
+  }
+}
+
+/* ================= Round flow ================= */
+function resetPositions(){
+  var left = me.isP1 ? me : foe, right = me.isP1 ? foe : me;
+  left.x=210; left.y=GROUND-FIGHTER_H; left.facing=1;
+  right.x=714; right.y=GROUND-FIGHTER_H; right.facing=-1;
+  [me,foe].forEach(function(f){
+    f.vx=0; f.vy=0; f.hp=MAXHP; f.atkT=-1; f.hurtT=0; f.dead=false;
+    f.tx=f.x; f.ty=f.y; f.tfacing=f.facing;
+  });
+  roundOver=false;
+  refreshHUD();
+}
+function showBanner(title, text, showRematch){
+  bannerTitle.textContent=title;
+  bannerText.textContent=text||"";
+  rematchBtn.style.display = showRematch ? "" : "none";
+  banner.classList.add("show");
+}
+function hideBanner(){ banner.classList.remove("show"); }
+
+function startCountdown(done){
+  hideBanner();
+  var seq=["3","2","1","GO!"], i=0;
+  countNum.classList.add("show");
+  (function step(){
+    if(i<seq.length){
+      countNum.textContent=seq[i];
+      sfx(seq[i]==="GO!"?"go":"count");
+      i++; setTimeout(step, seq[i-1]==="GO!"?450:650);
+    } else {
+      countNum.classList.remove("show");
+      fighting=true;
+      if(done) done();
+    }
+  })();
+}
+function endRound(winnerIsMe){
+  if(roundOver) return;
+  roundOver=true; fighting=false;
+  var loser = winnerIsMe ? foe : me;
+  loser.dead=true;
+  if(mode==="online") sendData({k:"end", winner: winnerIsMe ? (me.isP1?"p1":"p2") : (foe.isP1?"p1":"p2")});
+  sfx(winnerIsMe?"win":"hit");
+  setTimeout(function(){
+    if(winnerIsMe) showBanner("🏆 あなたの勝ち！", mode==="solo"?"CPUを倒したよ。もう一回やる？":"見事な一本。もう一回やる？", true);
+    else showBanner("相手の勝ち…", mode==="solo"?"CPUに倒されちゃった。もう一回やる？":"あと少しだった。もう一回やる？", true);
+  }, 650);
+  log(winnerIsMe ? "ラウンド終了：あなたの勝ち" : "ラウンド終了：相手の勝ち");
+}
+rematchBtn.addEventListener("click", function(){
+  if(mode==="online"){ sendData({k:"rematch"}); }
+  resetPositions();
+  startCountdown();
+});
+
+/* ================= Combat ================= */
+function tryAttack(f, isLocal){
+  if(!fighting || roundOver || f.dead) return;
+  if(f.atkT>=0) return;
+  f.atkT=0; f.atkHitDone=false;
+  if(isLocal){
+    sfx("swing");
+    if(mode==="online") sendData({k:"atk"});
+  }
+}
+function dist(a,b){ return Math.abs((a.x+FIGHTER_W/2)-(b.x+FIGHTER_W/2)); }
+function facingToward(att, def){
+  var ac=att.x+FIGHTER_W/2, dc=def.x+FIGHTER_W/2;
+  return (att.facing===1 && dc>=ac-6) || (att.facing===-1 && dc<=ac+6);
+}
+/* attacker hits defender check, evaluated on the DEFENDER's client for online fairness */
+function checkHit(att, def, defIsLocal){
+  if(att.atkT<0 || att.atkHitDone) return;
+  if(att.atkT<6 || att.atkT>16) return; /* active frames of the swing */
+  if(dist(att,def) > RANGE) return;
+  if(Math.abs(att.y-def.y) > 74) return;
+  if(!facingToward(att,def)) return;
+  att.atkHitDone=true;
+  applyDamage(def, att);
+  if(defIsLocal && mode==="online") sendData({k:"hp", hp:def.hp});
+}
+function applyDamage(def, att){
+  def.hp=Math.max(0, def.hp-DMG);
+  def.hurtT=10;
+  def.vx = (att.facing)*6.5;
+  def.vy = -3.2; def.onGround=false;
+  sfx("hit");
+  refreshHUD();
+  if(def.hp<=0){
+    if(def===me) endRound(false);
+    else if(mode!=="online") endRound(true);
+    /* online: foe death is confirmed by foe's own 'end' / hp=0 message */
+  }
+}
+
+/* ================= Physics / update ================= */
+function stepFighter(f, input){
+  if(f.dead){ f.atkT=-1; return; }
+  var speed=4.4;
+  f.moving=false;
+  if(input && fighting && !roundOver){
+    if(input.left){ f.x-=speed; f.facing=-1; f.moving=true; }
+    if(input.right){ f.x+=speed; f.facing=1; f.moving=true; }
+    if(input.jump && f.onGround){ f.vy=-13.5; f.onGround=false; sfx("jump"); }
+  }
+  f.x+=f.vx; f.vx*=0.78;
+  if(Math.abs(f.vx)<0.05) f.vx=0;
+  f.vy+=GRAV; f.y+=f.vy;
+  if(f.y>=GROUND-FIGHTER_H){ f.y=GROUND-FIGHTER_H; f.vy=0; f.onGround=true; }
+  if(f.x<8) f.x=8;
+  if(f.x>W-FIGHTER_W-8) f.x=W-FIGHTER_W-8;
+  if(f.moving && f.onGround) f.walkPhase+=0.32; else if(f.onGround) f.walkPhase*=0.8;
+  if(f.atkT>=0){ f.atkT++; if(f.atkT>22) f.atkT=-1; }
+  if(f.hurtT>0) f.hurtT--;
+}
+function cpuThink(){
+  if(!fighting || roundOver || foe.dead) return;
+  cpuTimer--; cpuAtkCd--;
+  var c=foe.x+FIGHTER_W/2, m=me.x+FIGHTER_W/2;
+  var input={left:false,right:false,jump:false};
+  if(cpuTimer<=0){ cpuTimer=18+Math.random()*22; cpuDir = Math.abs(c-m)>70 ? (m>c?1:-1) : (Math.random()<0.4?(Math.random()<0.5?-1:1):0); }
+  if(cpuDir<0) input.left=true; if(cpuDir>0) input.right=true;
+  if(Math.abs(c-m)<RANGE-14 && cpuAtkCd<=0 && Math.random()<0.5){ tryAttack(foe,false); cpuAtkCd=34+Math.random()*26; }
+  if(Math.random()<0.006 && foe.onGround) input.jump=true;
+  stepFighter(foe, input);
+  if(foe.atkT===2) sfx("swing");
+}
+
+/* ================= Drawing ================= */
+function drawFighter(f){
+  var cx=f.x+FIGHTER_W/2, feet=f.y+FIGHTER_H;
+  ctx.save();
+  ctx.translate(cx, feet);
+  if(f.dead){ ctx.rotate(f.facing*1.35); ctx.globalAlpha=0.85; }
+  var flash = f.hurtT>0 && (f.hurtT%4<2);
+  var body = flash ? "#ff5a4e" : f.color;
+  var dark = flash ? "#c22f24" : f.dark;
+  var swing = Math.sin(f.walkPhase)* (f.moving&&f.onGround?6:0);
+  var air = !f.onGround;
+
+  /* legs */
+  ctx.strokeStyle=dark; ctx.lineWidth=7; ctx.lineCap="round";
+  ctx.beginPath();
+  if(air){ ctx.moveTo(0,-34); ctx.lineTo(-f.facing*4,-14); ctx.moveTo(0,-34); ctx.lineTo(f.facing*9,-18); }
+  else { ctx.moveTo(0,-34); ctx.lineTo(swing,-1); ctx.moveTo(0,-34); ctx.lineTo(-swing,-1); }
+  ctx.stroke();
+  /* torso */
+  ctx.fillStyle=body;
+  ctx.beginPath();
+  ctx.moveTo(-11,-66); ctx.lineTo(11,-66); ctx.lineTo(9,-32); ctx.lineTo(-9,-32); ctx.closePath(); ctx.fill();
+  /* belt */
+  ctx.fillStyle=dark; ctx.fillRect(-10,-40,20,5);
+  /* head */
+  ctx.fillStyle= flash ? "#ffb3ab" : "#f4c99a";
+  ctx.beginPath(); ctx.arc(0,-76,10.5,0,Math.PI*2); ctx.fill();
+  /* headband */
+  ctx.fillStyle=dark; ctx.fillRect(-10.5,-82,21,5);
+  ctx.fillRect(f.facing*-10.5 + (f.facing<0?0:-6), -80, 6, 3);
+  /* sword arm + sword */
+  var armAng;
+  if(f.atkT>=0){
+    var t=f.atkT/22;
+    armAng = t<0.3 ? -2.3 + (t/0.3)*0.5 : -1.8 + ((t-0.3)/0.7)*2.6; /* wind up then slash */
+  } else armAng = 0.5 + Math.sin(f.walkPhase*0.5)*0.05;
+  ctx.save();
+  ctx.translate(f.facing*8,-60);
+  ctx.scale(f.facing,1);
+  ctx.rotate(armAng);
+  ctx.strokeStyle=body; ctx.lineWidth=6;
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(15,3); ctx.stroke();
+  /* blade */
+  ctx.strokeStyle="#dfe7ee"; ctx.lineWidth=4.5;
+  ctx.beginPath(); ctx.moveTo(15,3); ctx.lineTo(52,-4); ctx.stroke();
+  ctx.strokeStyle="#8d99a6"; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(15,3); ctx.lineTo(52,-4); ctx.stroke();
+  /* guard */
+  ctx.strokeStyle="#6b543a"; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.moveTo(13,-3); ctx.lineTo(17,9); ctx.stroke();
+  ctx.restore();
+  /* off arm */
+  ctx.strokeStyle=body; ctx.lineWidth=6;
+  ctx.beginPath(); ctx.moveTo(-f.facing*8,-60); ctx.lineTo(-f.facing*15,-44 + (air?4:swing*0.4)); ctx.stroke();
+  ctx.restore();
+
+  /* sword arc effect */
+  if(f.atkT>=5 && f.atkT<=16){
+    ctx.save();
+    ctx.globalAlpha=0.35*(1-(f.atkT-5)/12);
+    ctx.strokeStyle="#ffffff"; ctx.lineWidth=10; ctx.lineCap="round";
+    ctx.beginPath();
+    var ccx=f.x+FIGHTER_W/2, ccy=f.y+22;
+    if(f.facing===1) ctx.arc(ccx,ccy,64,-1.5,0.7);
+    else ctx.arc(ccx,ccy,64,Math.PI-0.7,Math.PI+1.5);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+function drawStage(){
+  /* sky */
+  var g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,"#1b2735"); g.addColorStop(0.7,"#243447"); g.addColorStop(1,"#2c3e50");
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  /* moon */
+  ctx.fillStyle="#f5eeda"; ctx.beginPath(); ctx.arc(828,86,34,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle="rgba(245,238,218,.14)"; ctx.beginPath(); ctx.arc(828,86,52,0,Math.PI*2); ctx.fill();
+  /* distant torii-like silhouette + hills */
+  ctx.fillStyle="#16202c";
+  ctx.beginPath(); ctx.moveTo(0,452); ctx.quadraticCurveTo(200,378,430,436); ctx.quadraticCurveTo(660,486,960,420); ctx.lineTo(960,452); ctx.closePath(); ctx.fill();
+  ctx.fillRect(96,300,10,120); ctx.fillRect(176,300,10,120); ctx.fillRect(82,292,118,10); ctx.fillRect(90,326,102,8);
+  /* ground */
+  ctx.fillStyle="#3d4a3a"; ctx.fillRect(0,GROUND,W,H-GROUND);
+  ctx.fillStyle="#4c5c47"; ctx.fillRect(0,GROUND,W,7);
+  ctx.fillStyle="rgba(0,0,0,.16)";
+  for(var i=0;i<14;i++){ ctx.fillRect((i*83)%W+20, GROUND+22+((i*37)%52), 34, 4); }
+  /* center line */
+  ctx.fillStyle="rgba(255,255,255,.10)"; ctx.fillRect(W/2-1,GROUND+8,2,44);
+}
+var lastFrame=0;
+function loop(ts){
+  requestAnimationFrame(loop);
+  var dt = ts-lastFrame; lastFrame=ts;
+  /* local player */
+  var input={ left:!!(keys.ArrowLeft||keys.KeyA||touch.left), right:!!(keys.ArrowRight||keys.KeyD||touch.right), jump:false };
+  stepFighter(me, input);
+  if(touch.jumpQueued){ touch.jumpQueued=false; if(me.onGround&&fighting&&!roundOver){ me.vy=-13.5; me.onGround=false; sfx("jump"); } }
+
+  if(mode==="solo"){ cpuThink(); }
+  else if(mode==="online"){
+    /* interpolate remote fighter toward last received state */
+    var k=0.45;
+    foe.x += (foe.tx-foe.x)*k;
+    foe.y += (foe.ty-foe.y)*k;
+    foe.facing = foe.tfacing;
+    if(foe.atkT>=0){ foe.atkT++; if(foe.atkT>22) foe.atkT=-1; }
+    if(foe.hurtT>0) foe.hurtT--;
+    if(foe.moving && foe.onGround) foe.walkPhase+=0.32;
+    foe.moving = Math.abs(foe.tx-foe.x)>1.2;
+  } else {
+    stepFighter(foe, null);
+  }
+
+  /* hit checks: my attack vs foe (visual/local), foe attack vs me (authoritative for my HP) */
+  checkHit(me, foe, false);
+  checkHit(foe, me, true);
+
+  /* draw */
+  drawStage();
+  /* shadows */
+  [me,foe].forEach(function(f){
+    ctx.fillStyle="rgba(0,0,0,.3)";
+    ctx.beginPath(); ctx.ellipse(f.x+FIGHTER_W/2, GROUND+8, 26, 6, 0, 0, Math.PI*2); ctx.fill();
+  });
+  drawFighter(me.isP1?me:foe);
+  drawFighter(me.isP1?foe:me);
+
+  /* network state send ~20Hz */
+  if(mode==="online" && connOpen){
+    sendAcc+=dt;
+    if(sendAcc>=50){
+      sendAcc=0;
+      sendData({k:"s", x:Math.round(me.x*10)/10, y:Math.round(me.y*10)/10, f:me.facing, hp:me.hp, mv:me.moving?1:0});
+    }
+  }
+}
+
+/* ================= Input ================= */
+var touch={left:false,right:false,jumpQueued:false};
+document.addEventListener("keydown", function(e){
+  if(e.target && (e.target.tagName==="INPUT")) return;
+  keys[e.code]=true;
+  if(["ArrowLeft","ArrowRight","ArrowUp","Space"].indexOf(e.code)>=0) e.preventDefault();
+  if(e.code==="ArrowUp"||e.code==="KeyW"||e.code==="Space"){
+    if(me.onGround&&fighting&&!roundOver){ me.vy=-13.5; me.onGround=false; sfx("jump"); }
+  }
+  if(e.code==="KeyJ"||e.code==="KeyF"){ tryAttack(me,true); }
+});
+document.addEventListener("keyup", function(e){ keys[e.code]=false; });
+
+function bindHold(id, on, off){
+  var el=$(id);
+  var start=function(e){ e.preventDefault(); el.classList.add("held"); on(); };
+  var end=function(e){ e.preventDefault(); el.classList.remove("held"); if(off) off(); };
+  el.addEventListener("pointerdown", start);
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointerleave", end);
+  el.addEventListener("pointercancel", end);
+  el.addEventListener("contextmenu", function(e){ e.preventDefault(); });
+}
+bindHold("btnLeft",  function(){ touch.left=true; },  function(){ touch.left=false; });
+bindHold("btnRight", function(){ touch.right=true; }, function(){ touch.right=false; });
+bindHold("btnJump",  function(){ touch.jumpQueued=true; });
+bindHold("btnAtk",   function(){ tryAttack(me,true); });
+
+/* ================= PeerJS networking ================= */
+var PREFIX="muse-pjduel-";
+var peer=null, conn=null, connOpen=false, sendAcc=0;
+var myCode=null, pingTimer=null, lastPingSent=0;
+
+function sendData(obj){
+  if(conn && connOpen){ try{ conn.send(obj); }catch(e){} }
+}
+function genCode(){
+  var chars="ABCDEFGHJKMNPQRSTUVWXYZ23456789", s="";
+  for(var i=0;i<4;i++) s+=chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+function setLobbyEnabled(on){
+  hostBtn.disabled=!on; joinBtn.disabled=!on; soloBtn.disabled=!on; joinInput.disabled=!on;
+}
+function cleanupPeer(){
+  if(pingTimer){ clearInterval(pingTimer); pingTimer=null; }
+  pingBox.style.display="none";
+  if(conn){ try{ conn.close(); }catch(e){} conn=null; }
+  if(peer){ try{ peer.destroy(); }catch(e){} peer=null; }
+  connOpen=false;
+  disconnectBtn.style.display="none";
+}
+function onDisconnected(reason){
+  cleanupPeer();
+  disconnectBtn.textContent="切断する";
+  mode="idle"; role=null; fighting=false;
+  refreshNames();
+  setLobbyEnabled(true);
+  codeBox.classList.remove("show");
+  setStatus("err","切断されました", reason||"相手との接続が切れたよ");
+  showBanner("接続が切れました","もう一度、部屋を作る／参加するから試してね", false);
+  log("切断: "+(reason||""));
+}
+disconnectBtn.addEventListener("click", function(){ if(mode!=="solo") onDisconnected("自分で切断した"); });
+
+function wireConnection(c){
+  conn=c;
+  conn.on("open", function(){
+    connOpen=true;
+    log("データ接続が開通");
+    if(role==="guest"){
+      sendData({k:"hello"});
+    }
+  });
+  conn.on("data", function(d){ if(d && typeof d==="object") onData(d); });
+  conn.on("close", function(){ if(mode==="online") onDisconnected("相手が接続を閉じた"); });
+  conn.on("error", function(e){ log("接続エラー: "+(e&&e.type?e.type:e)); });
+}
+function onData(d){
+  switch(d.k){
+    case "hello":
+      if(role==="host"){
+        log("ゲストが入室。対戦開始");
+        setStatus("on","接続完了！ 対戦中","ゲストが入室したよ");
+        sendData({k:"start"});
+        resetPositions();
+        startCountdown();
+      }
+      break;
+    case "start":
+      log("ホストから開始合図");
+      setStatus("on","接続完了！ 対戦中","ホストとつながったよ");
+      resetPositions();
+      startCountdown();
+      break;
+    case "s":
+      foe.tx=d.x; foe.ty=d.y; foe.tfacing=d.f; foe.hp=d.hp;
+      if(d.hp<=0 && !roundOver && fighting){ endRound(true); }
+      refreshHUD();
+      break;
+    case "atk":
+      if(foe.atkT<0){ foe.atkT=0; foe.atkHitDone=false; sfx("swing"); }
+      break;
+    case "hp":
+      foe.hp=d.hp; refreshHUD();
+      break;
+    case "end":
+      if(!roundOver){
+        var iWon = (d.winner==="p1") !== me.isP1 ? false : true;
+        /* d.winner is the winner side; iWon = winner side is my side */
+        iWon = (d.winner === (me.isP1?"p1":"p2"));
+        endRound(iWon);
+      }
+      break;
+    case "rematch":
+      resetPositions();
+      startCountdown();
+      break;
+    case "ping":
+      sendData({k:"pong", t:d.t});
+      break;
+    case "pong":
+      var rtt=Date.now()-d.t;
+      pingVal.textContent=rtt;
+      break;
+  }
+}
+function startPing(){
+  pingBox.style.display="";
+  if(pingTimer) clearInterval(pingTimer);
+  pingTimer=setInterval(function(){ if(connOpen) sendData({k:"ping", t:Date.now()}); }, 2000);
+}
+
+hostBtn.addEventListener("click", function(){
+  if(typeof Peer==="undefined"){ setStatus("err","PeerJSを読み込めなかった","ネット接続を確認して再読み込みしてね"); log("PeerJS CDNの読み込みに失敗"); return; }
+  cleanupPeer();
+  myCode=genCode();
+  setLobbyEnabled(false);
+  setStatus("wait","部屋を作成中…","PeerJSサーバーに接続しているよ");
+  log("ホストとして部屋作成を開始（コード: "+myCode+"）");
+  try{ peer=new Peer(PREFIX+myCode, {debug:0}); }
+  catch(e){ setStatus("err","初期化に失敗","再読み込みして試してね"); setLobbyEnabled(true); return; }
+
+  peer.on("open", function(id){
+    role="host"; mode="online";
+    me = makeFighter(210,"#17a398","#0b5a54",true);  me.isP1=true;
+    foe = makeFighter(714,"#f2a93b","#9a6206",false); foe.isP1=false; foe.remote=true;
+    refreshNames(); refreshHUD();
+    roomCodeEl.textContent=myCode;
+    codeBox.classList.add("show");
+    disconnectBtn.style.display="";
+    setStatus("wait","相手の参加を待っています","部屋コード「"+myCode+"」を相手に伝えてね");
+    showBanner("部屋コードは「"+myCode+"」","相手がこのコードで参加すると対戦が始まるよ", false);
+    log("部屋ができた。Peer ID: "+id);
+  });
+  peer.on("connection", function(c){
+    if(conn){ log("すでに接続中なので追加の接続は無視"); return; }
+    wireConnection(c);
+    startPing();
+  });
+  peer.on("error", function(err){
+    log("Peerエラー: "+err.type);
+    if(err.type==="unavailable-id"){
+      setStatus("err","そのコードは使用中だった","もう一度「部屋を作る」を押してね");
+      cleanupPeer(); setLobbyEnabled(true);
+    } else if(mode!=="online" || !connOpen){
+      setStatus("err","接続エラー（"+err.type+"）","時間をおいて試してね");
+      cleanupPeer(); setLobbyEnabled(true);
+    }
+  });
+  peer.on("disconnected", function(){ log("シグナリングから切断（再接続を試行）"); try{ peer.reconnect(); }catch(e){} });
+});
+
+joinBtn.addEventListener("click", function(){
+  var code=(joinInput.value||"").trim().toUpperCase();
+  if(code.length!==4){ setStatus("err","コードは4文字だよ","ホストから聞いたコードを入れてね"); joinInput.focus(); return; }
+  if(typeof Peer==="undefined"){ setStatus("err","PeerJSを読み込めなかった","ネット接続を確認して再読み込みしてね"); return; }
+  cleanupPeer();
+  setLobbyEnabled(false);
+  setStatus("wait","部屋「"+code+"」に接続中…","ホストを探しているよ");
+  log("ゲストとして部屋 "+code+" へ接続開始");
+  try{ peer=new Peer({debug:0}); }catch(e){ setStatus("err","初期化に失敗","再読み込みして試してね"); setLobbyEnabled(true); return; }
+
+  peer.on("open", function(){
+    role="guest"; mode="online";
+    me = makeFighter(714,"#f2a93b","#9a6206",false);  me.isP1=false;
+    foe = makeFighter(210,"#17a398","#0b5a54",true);  foe.isP1=true; foe.remote=true;
+    refreshNames(); refreshHUD();
+    disconnectBtn.style.display="";
+    var c=peer.connect(PREFIX+code, {reliable:true});
+    wireConnection(c);
+    startPing();
+    /* timeout if host not found */
+    setTimeout(function(){
+      if(mode==="online" && !connOpen){
+        setStatus("err","部屋が見つからなかった","コードが合っているか、ホストが部屋を開いたままか確認してね");
+        log("参加タイムアウト");
+        cleanupPeer(); setLobbyEnabled(true); mode="idle"; role=null; refreshNames();
+      }
+    }, 9000);
+  });
+  peer.on("error", function(err){
+    log("Peerエラー: "+err.type);
+    if(err.type==="peer-unavailable"){
+      setStatus("err","部屋が見つからなかった","コードが合っているか確認してね");
+      cleanupPeer(); setLobbyEnabled(true); mode="idle"; role=null; refreshNames();
+    }
+  });
+});
+
+copyBtn.addEventListener("click", function(){
+  var code=roomCodeEl.textContent;
+  function done(){ copyBtn.textContent="コピー済み ✓"; setTimeout(function(){ copyBtn.textContent="コピー"; },1600); }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(code).then(done, function(){ fallback(); });
+  } else fallback();
+  function fallback(){
+    var ta=document.createElement("textarea");
+    ta.value=code; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); done(); }catch(e){}
+    document.body.removeChild(ta);
+  }
+});
+joinInput.addEventListener("keydown", function(e){ if(e.key==="Enter") joinBtn.click(); });
+joinInput.addEventListener("input", function(){ joinInput.value=joinInput.value.toUpperCase().replace(/[^A-Z0-9]/g,""); });
+
+/* ================= Solo mode ================= */
+soloBtn.addEventListener("click", function(){
+  cleanupPeer();
+  mode="solo"; role=null;
+  me = makeFighter(210,"#17a398","#0b5a54",true);
+  foe = makeFighter(714,"#f2a93b","#9a6206",false);
+  refreshNames();
+  setStatus("on","練習モード（CPU対戦）","オンラインではないよ。操作の練習にどうぞ");
+  setLobbyEnabled(false);
+  disconnectBtn.style.display="";
+  disconnectBtn.textContent="練習をやめる";
+  resetPositions();
+  startCountdown();
+  log("練習モード開始");
+});
+var _origDisconnect = disconnectBtn.onclick;
+disconnectBtn.addEventListener("click", function(){
+  if(mode==="solo"){
+    mode="idle"; fighting=false;
+    me = makeFighter(210,"#17a398","#0b5a54",true);
+    foe = makeFighter(714,"#f2a93b","#9a6206",false);
+    refreshHUD();
+    setLobbyEnabled(true);
+    disconnectBtn.style.display="none";
+    disconnectBtn.textContent="切断する";
+    setStatus("","未接続","部屋を作るか、コードを入れて参加してね");
+    showBanner("対戦相手を待っています","部屋を作るか、コードで参加してね", false);
+    refreshNames();
+  }
+});
+
+/* ================= Boot ================= */
+refreshNames(); refreshHUD();
+showBanner("対戦相手を待っています","部屋を作るか、コードで参加してね", false);
+var q=/[?&]room=([A-Za-z0-9]{4})/.exec(location.search||"");
+if(q) joinInput.value=q[1].toUpperCase();
+requestAnimationFrame(loop);
+log("ページ読み込み完了。PeerJS: "+(typeof Peer!=="undefined"?"OK":"読み込み失敗"));
+})();
+</script>
+  </body>
+</html>
