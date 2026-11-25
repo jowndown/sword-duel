@@ -336,10 +336,10 @@
 
         <section class="card">
           <h2><span class="chip solo">3</span>1人で練習 ＆ ボス戦</h2>
-          <p>相手がいなくても操作感を試せるCPU練習と、1人専用のボス戦。ボスは人ではなく、口から炎の火の玉を撃ってくる鬼ドラゴン。HP300で、HPが減ると段階的に速く凶暴になるよ。</p>
+          <p>相手がいなくても操作感を試せるCPU練習と、1人専用のボス戦。ボスは人ではなく、口から炎の火の玉を撃ってくる鬼ドラゴン。HP100で、HPが減ると段階的に速く凶暴になるよ。</p>
           <button class="btn ghost" id="soloBtn">CPUと練習する</button>
           <button class="btn boss" id="bossBtn">🔥 ボスと戦う（鬼ドラゴン）</button>
-          <span class="note">ボスは斬られても吹き飛びにくいよ。火の玉はジャンプで避けるか、剣で斬って消せる。オンライン対戦中は押せないよ。</span>
+          <span class="note">ボスは斬られても吹き飛びにくいよ。火の玉はジャンプで避けるか、剣で斬って消せる。近づくと炎ブレスや尻尾薙ぎ払いで反撃し、画面端に追い込むと翼で頭上を飛び越えて位置を取り直すよ。オンライン対戦中は押せないよ。</span>
         </section>
       </div>
 
@@ -398,7 +398,7 @@
         <div>攻撃： <kbd>J</kbd> / <kbd>F</kbd> ／ 「剣で斬る」ボタン（剣の届く距離で当たる）</div>
         <div>勝敗： 相手のHPを0にした方の勝ち。1発 = 20ダメージ（5発で決着）</div>
         <div>スタミナ： 剣を振るたびにスタミナを30消費するよ。足りないと剣は振れない。振っていない間は少し間をおいて自動で回復するから、連打せず間合いを取りながら戦おう。CPUも同じルール</div>
-        <div>ボス戦： 「ボスと戦う」から1人で挑めるよ。鬼ドラゴンはHP300・体が約1.4倍で、剣は持たず口から火の玉を撃ってくる（1発25ダメージ）。斬っても吹き飛びにくい。火の玉はジャンプで避けるか、タイミングよく剣で斬ると消せるよ。HPが62%以下で火の玉が速く・多くなり、30%以下で激怒して3連の火の玉を吐いてくるよ</div>
+        <div>ボス戦： 「ボスと戦う」から1人で挑めるよ。鬼ドラゴンはHP100・体が約1.4倍で、剣は持たず口から火の玉を撃ってくる（1発25ダメージ＝4発で決着）。斬っても吹き飛びにくい。火の玉はジャンプで避けるか、タイミングよく剣で斬ると消せるよ。近づきすぎると至近距離の炎ブレス（正面）や尻尾薙ぎ払い（背後）で反撃してくる（どちらも20ダメージ）。画面端に追い込んでも、翼ホップで頭上を飛び越えて間合いを取り直すから、端に固めて一方的に斬ることはできないよ。HPが62%以下で火の玉が速く・多くなり、30%以下で激怒して3連の火の玉を吐いてくるよ</div>
         <div>音： 対戦中はBGMが流れ、剣の音やヒット音などの効果音も鳴るよ。上の「BGM オン／オフ」「効果音 オン／オフ」ボタンで別々に止められる</div>
         <div>被弾： 斬られると仰け反って大きく吹き飛び、その間は動けず反撃もできない。立て直すまで短い無敵時間があるから、斬り合いにならず一度距離が開くよ</div>
         <div>ランダムマッチング： 「ランダムマッチング」ボタンを押すと、今探している相手と自動でつながる。誰も探していなければ自分が待機役になり、次に探しに来た人と対戦になるよ。相手が見つかるまで画面を開いたまま待ってね。</div>
@@ -475,7 +475,12 @@ var RANGE=86, DMG=20, MAXHP=100;
    swing and refills STAM_REGEN per frame (~30/sec at 60fps), so mashing the
    sword runs dry after ~3 swings and the fighter must back off to recover. */
 var MAXSTAM=100, ATK_COST=30, STAM_REGEN=0.5, STAM_DELAY=36;
-var BOSS_HP=300, BOSS_DMG=25, BOSS_RANGE=118;
+/* Design rule: HP and stamina are ALWAYS 100 for everyone, bosses included.
+   Boss difficulty comes from attack patterns, speed, fire rate and phases —
+   never from bigger HP/stamina numbers. Damage is tuned inside the 100:
+   sword 20 = 5 hits, fireball 25 = 4 hits, boss melee 20 = 5 hits. */
+var BOSS_HP=100, BOSS_STAM=100, BOSS_DMG=25, BOSS_RANGE=118;
+var BOSS_MELEE_DMG=20, BOSS_MELEE_COST=20, BOSS_MELEE_RANGE=118;
 
 /* ================= Fighters ================= */
 function makeFighter(x, color, dark, isP1, opts){
@@ -485,7 +490,7 @@ function makeFighter(x, color, dark, isP1, opts){
   return {
     x:x, y:GROUND-FIGHTER_H, vx:0, vy:0, facing:isP1?1:-1,
     hp:maxHp, maxHp:maxHp, stam:maxStam, maxStam:maxStam, stamDelay:0, onGround:true, walkPhase:0, moving:false,
-    atkT:-1, atkHitDone:false, castT:-1, hurtT:0, stunT:0, invulnT:0, dead:false,
+    atkT:-1, atkHitDone:false, castT:-1, meleeT:-1, meleeKind:"", meleeHitDone:false, leapT:0, hurtT:0, stunT:0, invulnT:0, dead:false,
     color:color, dark:dark, isP1:isP1,
     isBoss:!!opts.isBoss, scale:opts.scale||1, dmg:opts.dmg||DMG, range:opts.range||RANGE,
     speedMul:opts.speedMul||1, stamRegen:opts.stamRegen||STAM_REGEN,
@@ -501,6 +506,7 @@ var fighting=false, roundOver=false;
 var keys={};
 var cpuTimer=0, cpuDir=0, cpuAtkCd=0;
 var isBossBattle=false, bossTimer=0, bossDir=0, bossAtkCd=0, bossDashCd=0, bossPhase=1, bossPhaseAnnounced=1, bossDoubleCd=0;
+var bossMeleeCd=0, bossLeapCd=0, bossCornerT=0;
 var projectiles=[]; /* boss fireballs in flight (boss fights are solo-only, simulated locally) */
 
 /* ================= Audio: BGM + SFX (all WebAudio synth) =================
@@ -735,11 +741,11 @@ function resetPositions(){
   left.x=210; left.y=GROUND-FIGHTER_H; left.facing=1;
   right.x=714; right.y=GROUND-FIGHTER_H; right.facing=-1;
   [me,foe].forEach(function(f){
-    f.vx=0; f.vy=0; f.hp=f.maxHp; f.stam=f.maxStam; f.stamDelay=0; f.atkT=-1; f.castT=-1; f.hurtT=0; f.stunT=0; f.invulnT=0; f.dead=false;
+    f.vx=0; f.vy=0; f.hp=f.maxHp; f.stam=f.maxStam; f.stamDelay=0; f.atkT=-1; f.castT=-1; f.meleeT=-1; f.leapT=0; f.hurtT=0; f.stunT=0; f.invulnT=0; f.dead=false;
     f.tx=f.x; f.ty=f.y; f.tfacing=f.facing;
   });
   projectiles.length=0;
-  bossPhase=1; bossPhaseAnnounced=1; bossAtkCd=46; bossDashCd=90; bossTimer=0;
+  bossPhase=1; bossPhaseAnnounced=1; bossAtkCd=46; bossDashCd=90; bossTimer=0; bossMeleeCd=55; bossLeapCd=110; bossCornerT=0;
   roundOver=false;
   refreshHUD();
 }
@@ -779,7 +785,7 @@ function endRound(winnerIsMe){
   setTimeout(function(){ sfx(winnerIsMe?"win":"lose"); }, 500);
   setTimeout(function(){
     if(isBossBattle){
-      if(winnerIsMe) showBanner("🏆 ボス撃破！！", "鬼ドラゴンを倒したよ！ HP300のボス戦クリア。もう一回挑む？", true);
+      if(winnerIsMe) showBanner("🏆 ボス撃破！！", "鬼ドラゴンを倒したよ！ HP100のボス戦クリア。もう一回挑む？", true);
       else showBanner("ボスに倒された…", "鬼ドラゴンの炎は強かった。HPを削るほど火の玉が激しくなるから、後半は特に慎重に。もう一回挑む？", true);
     }
     else if(winnerIsMe) showBanner("🏆 あなたの勝ち！", mode==="solo"?"CPUを倒したよ。もう一回やる？":"見事な一本。もう一回やる？", true);
@@ -880,7 +886,8 @@ function stepFighter(f, input){
     }
     if(input.jump && f.onGround){ f.vy=-13.5; f.onGround=false; sfx("jump"); }
   }
-  f.x+=f.vx; f.vx*= stunned ? 0.86 : 0.78; /* reeling body slides further before friction bites */
+  f.x+=f.vx; f.vx*= stunned ? 0.86 : (f.leapT>0 ? 0.965 : 0.78); /* reeling body slides further; a leap keeps its momentum so the boss can clear the player */
+  if(f.leapT>0) f.leapT--;
   if(Math.abs(f.vx)<0.05) f.vx=0;
   f.vy+=GRAV; f.y+=f.vy;
   if(f.y>=GROUND-FIGHTER_H){ f.y=GROUND-FIGHTER_H; f.vy=0; f.onGround=true; }
@@ -889,6 +896,7 @@ function stepFighter(f, input){
   if(f.moving && f.onGround) f.walkPhase+=0.32*(0.45+0.55*(f.moveAmt||1)); else if(f.onGround) f.walkPhase*=0.8;
   if(f.atkT>=0){ f.atkT++; if(f.atkT>22) f.atkT=-1; }
   if(f.castT>=0){ f.castT++; if(f.castT>24) f.castT=-1; }
+  if(f.meleeT>=0){ f.meleeT++; if(f.meleeT>26) f.meleeT=-1; }
   if(f.hurtT>0) f.hurtT--;
   if(f.stunT>0) f.stunT--;
   if(f.invulnT>0) f.invulnT--;
@@ -935,6 +943,98 @@ function bossCast(){
   else { bossShoot(0); }
   sfx("fire");
   refreshHUD();
+}
+/* ================= Boss close-range counters =================
+   Fireballs need distance (gap>70), which used to leave the dragon helpless
+   when the player got in close or pinned it against a wall: it just kept
+   backing into the edge and never attacked. These counters close that hole:
+   a point-blank flame breath when the player is in front, a tail sweep when
+   the player is behind, and a wing leap OVER the player to retake position
+   when cornered. Melee damage is BOSS_MELEE_DMG=20 (5 hits inside HP100). */
+function bossMelee(){
+  var c=foe.x+FIGHTER_W/2, m=me.x+FIGHTER_W/2;
+  var playerSide = m>=c ? 1 : -1;
+  var behind = playerSide !== foe.facing;
+  foe.meleeKind = behind ? "tail" : "breath";
+  foe.meleeT=0; foe.meleeHitDone=false;
+  foe.stam=Math.max(0, foe.stam-BOSS_MELEE_COST); foe.stamDelay=STAM_DELAY;
+  if(behind){ sfx("swing"); } else { foe.castT=0; sfx("fire"); } /* breath reuses the open-jaw cast pose */
+  bossMeleeCd = bossPhase===1 ? 78+Math.random()*20 : (bossPhase===2 ? 64+Math.random()*16 : 50+Math.random()*12);
+  bossAtkCd = Math.max(bossAtkCd, 20); /* don't chain straight into a fireball */
+  refreshHUD();
+}
+function updateBossMelee(){
+  if(foe.meleeT<0 || foe.meleeHitDone) return;
+  if(foe.meleeT<7 || foe.meleeT>15) return; /* active frames of the breath / sweep */
+  if(me.dead || me.stunT>0 || me.invulnT>0) return; /* same no-chain-hit rules as a sword */
+  var c=foe.x+FIGHTER_W/2, m=me.x+FIGHTER_W/2;
+  var side = m>=c ? 1 : -1;
+  var inArc = foe.meleeKind==="breath" ? (side===foe.facing) : (side===-foe.facing);
+  if(!inArc) return;
+  if(Math.abs(c-m) > BOSS_MELEE_RANGE+16) return;
+  if(Math.abs(foe.y-me.y) > 84) return; /* a jump can still dodge it */
+  foe.meleeHitDone=true;
+  var keepDmg=foe.dmg, keepVx=foe.vx;
+  foe.dmg=BOSS_MELEE_DMG;
+  applyDamage(me, foe); /* full knockback: the counter shoves the player back out */
+  foe.dmg=keepDmg; foe.vx=keepVx;
+  if(foe.meleeKind==="breath") sfx("firehit");
+}
+function bossLeapOver(){
+  var c=foe.x+FIGHTER_W/2, m=me.x+FIGHTER_W/2;
+  var dirToMe = m>c ? 1 : -1;
+  foe.vx = dirToMe*10.5;
+  foe.vy = -13; foe.onGround=false; foe.leapT=34; /* leapT keeps momentum (low friction) so it really clears the player */
+  foe.facing = dirToMe;
+  bossLeapCd = 230+Math.random()*70;
+  bossCornerT = 0;
+  sfx("jump");
+  log("ボスが翼でプレイヤーを飛び越えて位置を取り直した");
+}
+function drawBossMelee(){
+  if(!isBossBattle || foe.meleeT<0 || foe.dead) return;
+  var t=foe.meleeT;
+  if(t<5 || t>20) return;
+  var k=1-Math.abs(t-12)/10; /* 0..1 intensity across the active window */
+  if(k<=0) return;
+  var cx=foe.x+FIGHTER_W/2, feet=foe.y+FIGHTER_H, sc=foe.scale||1;
+  ctx.save();
+  if(foe.meleeKind==="breath"){
+    var mo=bossMouth(foe), dir=foe.facing;
+    var grad=ctx.createLinearGradient(mo.x,0, mo.x+dir*130,0);
+    grad.addColorStop(0,"rgba(255,224,140,"+(0.8*k)+")");
+    grad.addColorStop(0.5,"rgba(255,140,40,"+(0.55*k)+")");
+    grad.addColorStop(1,"rgba(220,60,20,0)");
+    ctx.fillStyle=grad;
+    ctx.beginPath();
+    ctx.moveTo(mo.x, mo.y-6);
+    ctx.lineTo(mo.x+dir*122, mo.y-10-24*k);
+    ctx.lineTo(mo.x+dir*136, mo.y+13);
+    ctx.lineTo(mo.x+dir*122, mo.y+10+24*k);
+    ctx.lineTo(mo.x, mo.y+8);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle="rgba(255,190,80,"+(0.5*k)+")";
+    for(var i=0;i<3;i++){
+      ctx.beginPath();
+      ctx.arc(mo.x+dir*(44+i*34), mo.y+Math.sin(performance.now()*0.02+i*2.1)*7, (11-i*2.4)*k+2, 0, Math.PI*2);
+      ctx.fill();
+    }
+  } else { /* tail sweep: a fast arc on the side opposite its facing */
+    ctx.globalAlpha=0.55*k;
+    ctx.strokeStyle="#ffb03a"; ctx.lineWidth=11; ctx.lineCap="round";
+    ctx.beginPath();
+    var cy=feet-30*sc, r=82*sc;
+    if(foe.facing===1) ctx.arc(cx,cy,r, Math.PI-0.75, Math.PI+0.95);
+    else ctx.arc(cx,cy,r, -0.95, 0.75);
+    ctx.stroke();
+    ctx.globalAlpha=0.35*k;
+    ctx.strokeStyle="#fff3b0"; ctx.lineWidth=5;
+    ctx.beginPath();
+    if(foe.facing===1) ctx.arc(cx,cy,r-9, Math.PI-0.6, Math.PI+0.8);
+    else ctx.arc(cx,cy,r-9, -0.8, 0.6);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 function updateProjectiles(){
   for(var i=projectiles.length-1;i>=0;i--){
@@ -988,7 +1088,7 @@ function drawProjectiles(){
 }
 function bossThink(){
   if(!fighting || roundOver || foe.dead) return;
-  bossTimer--; bossAtkCd--; bossDashCd--; bossDoubleCd--;
+  bossTimer--; bossAtkCd--; bossDashCd--; bossDoubleCd--; bossMeleeCd--; bossLeapCd--;
   var ratio = foe.hp/foe.maxHp;
   bossPhase = ratio>0.62 ? 1 : (ratio>0.3 ? 2 : 3);
   if(bossPhase>bossPhaseAnnounced){
@@ -1005,6 +1105,16 @@ function bossThink(){
   var c=foe.x+FIGHTER_W/2, m=me.x+FIGHTER_W/2;
   var gap=Math.abs(c-m), dirToMe = m>c?1:-1;
   var input={left:false,right:false,jump:false};
+  /* Cornered check: boss is against a wall with the player on its open side,
+     so backing off just grinds it into the edge. While pinned, count up to a
+     leap over the player instead of walking into the wall. */
+  var pinned = ((foe.x<=26 && dirToMe===1) || (foe.x>=W-FIGHTER_W-26 && dirToMe===-1)) && gap<230;
+  if(pinned && foe.onGround && !foe.dead) bossCornerT++;
+  else if(bossCornerT>0) bossCornerT=Math.max(0, bossCornerT-2);
+  var cornerLimit = bossPhase===1 ? 50 : (bossPhase===2 ? 40 : 30);
+  if(bossCornerT>=cornerLimit && bossLeapCd<=0 && foe.onGround && foe.stunT<=0){
+    bossLeapOver();
+  }
   /* The dragon fights at range: close in when far away, back off when the
      player gets under its snout, otherwise prowl. */
   if(bossTimer<=0){
@@ -1013,24 +1123,37 @@ function bossThink(){
     else if(gap<190) bossDir=-dirToMe;
     else bossDir = Math.random()<0.4 ? 0 : (Math.random()<0.5?dirToMe:-dirToMe);
   }
-  /* phase 2+: wing-hop backwards to reopen distance when crowded */
-  if(bossPhase>=2 && bossDashCd<=0 && gap<170 && foe.onGround){
-    foe.vx = -dirToMe * 10;
-    foe.vy = -6.5; foe.onGround=false;
-    bossDashCd = bossPhase===3 ? 150+Math.random()*80 : 210+Math.random()*90;
-    sfx("jump");
+  if(pinned) bossDir=0; /* stop walking into the wall; the leap / melee handles the escape */
+  /* Reposition when crowded (all phases): wing-hop backwards if there is
+     room behind, otherwise leap OVER the player — never just stay pinned. */
+  if(bossDashCd<=0 && gap<170 && foe.onGround && foe.stunT<=0){
+    var backRoom = dirToMe===1 ? c : (W-c); /* distance from boss centre to the wall at its back */
+    if(backRoom>170){
+      foe.vx = -dirToMe * 10;
+      foe.vy = -6.5; foe.onGround=false;
+      bossDashCd = bossPhase===3 ? 150+Math.random()*80 : 210+Math.random()*90;
+      sfx("jump");
+    } else if(bossLeapCd<=0){
+      bossLeapOver();
+      bossDashCd = 120;
+    }
   }
   if(bossDir<0) input.left=true; if(bossDir>0) input.right=true;
-  /* spit fireballs on cooldown; stamina gates the barrage like a sword swing */
+  /* Attacks: close range is answered with a melee counter (breath / tail),
+     mid-to-long range with fireballs. Distance alone can no longer switch
+     the boss off — one of the two is always available. */
   if(bossAtkCd<=0){
-    if(foe.stam>=ATK_COST && gap>70){
+    if(gap<=BOSS_MELEE_RANGE && bossMeleeCd<=0 && foe.stunT<=0){
+      bossMelee();
+    } else if(foe.stam>=ATK_COST && gap>70){
       bossCast();
       bossAtkCd = bossPhase===1 ? 74+Math.random()*26 : (bossPhase===2 ? 56+Math.random()*18 : 44+Math.random()*14);
     } else {
-      bossAtkCd=12; /* wait for stamina / a little distance */
+      bossAtkCd=10; /* brief wait: stamina refilling or the melee counter cooling down */
     }
   }
   stepFighter(foe, input);
+  updateBossMelee();
 }
 
 /* ================= Drawing ================= */
@@ -1649,6 +1772,7 @@ function loop(ts){
   drawFighter(me.isP1?me:foe);
   drawFighter(me.isP1?foe:me);
   drawProjectiles();
+  drawBossMelee();
 
   /* network state send ~20Hz */
   if(mode==="online" && connOpen){
@@ -2131,16 +2255,16 @@ bossBtn.addEventListener("click", function(){
   cleanupPeer();
   mode="solo"; role=null; isBossBattle=true;
   me = makeFighter(210,"#17a398","#0b5a54",true);
-  foe = makeFighter(690,"#b3392e","#5c130c",false,{isBoss:true, maxHp:BOSS_HP, maxStam:120, dmg:BOSS_DMG, range:BOSS_RANGE, scale:1.42, speedMul:0.95, stamRegen:0.6});
+  foe = makeFighter(690,"#b3392e","#5c130c",false,{isBoss:true, maxHp:BOSS_HP, maxStam:BOSS_STAM, dmg:BOSS_DMG, range:BOSS_RANGE, scale:1.42, speedMul:0.95, stamRegen:0.6});
   refreshNames();
-  setStatus("on","ボス戦（鬼ドラゴン）","HP300・大型。剣は持たず、口から火の玉を撃ってくる。HPが減ると炎が激しくなるよ");
+  setStatus("on","ボス戦（鬼ドラゴン）","HP100・大型。剣は持たず、口から火の玉を撃ってくる。HPが減ると炎が激しくなるよ");
   setLobbyEnabled(false);
   disconnectBtn.style.display="";
   disconnectBtn.textContent="ボス戦をやめる";
   resetPositions();
   /* boss starts a bit closer so its larger body doesn't clip the edge */
   foe.x=660;
-  showBanner("🔥 鬼ドラゴンが現れた！","HP300のボス戦。火の玉を避けながら斬り込もう。火の玉は剣で斬って消せるよ", false);
+  showBanner("🔥 鬼ドラゴンが現れた！","HP100のボス戦。火の玉を避けながら斬り込もう。火の玉は剣で斬って消せるよ", false);
   setTimeout(function(){ if(mode==="solo" && isBossBattle && !roundOver) startCountdown(); }, 1100);
   log("ボス戦開始：鬼ドラゴン HP"+BOSS_HP);
 });
