@@ -152,6 +152,25 @@
       .hpfill.p2{ background:linear-gradient(90deg,#d98a16,#f2a93b); }
       .hpfill.low{ background:linear-gradient(90deg,#c0392b,#e2574c) !important; }
       .hpnum{ font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-soft); margin-top:3px; }
+      .stambar{
+        margin-top:5px; height:9px; border-radius:5px; background:var(--panel);
+        border:1px solid var(--line); overflow:hidden; position:relative;
+      }
+      .fighter-hud.right .stambar{ transform:scaleX(-1); }
+      .stamfill{
+        height:100%; width:100%; border-radius:5px;
+        background:linear-gradient(90deg,#3f9e4d,#7cc24f);
+        transition:width .1s linear;
+      }
+      .stamfill.low{ background:linear-gradient(90deg,#c0392b,#e2574c); }
+      .stambar.denied{ animation:stamdeny .3s ease; }
+      @keyframes stamdeny{
+        0%,100%{ box-shadow:none; }
+        30%{ box-shadow:0 0 0 3px rgba(214,69,65,.75); }
+        60%{ box-shadow:0 0 0 1px rgba(214,69,65,.4); }
+      }
+      .stamnum{ font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-soft); margin-top:3px; }
+      .tbtn.atk.tired{ opacity:.5; filter:grayscale(.45); }
       .vs{
         font-family:"IBM Plex Mono",monospace; font-weight:700; font-size:13px; color:var(--ink-soft);
         background:var(--panel); border:1px solid var(--line); border-radius:99px; padding:5px 12px; white-space:nowrap;
@@ -326,12 +345,16 @@
             <div class="fname"><span id="p1Name">プレイヤー1</span><span class="tag me" id="p1Tag" style="display:none">あなた</span></div>
             <div class="hpbar"><div class="hpfill p1" id="hp1"></div></div>
             <div class="hpnum">HP <span id="hpNum1">100</span> / 100</div>
+            <div class="stambar" id="stamWrap1"><div class="stamfill" id="stam1"></div></div>
+            <div class="stamnum">スタミナ <span id="stamNum1">100</span></div>
           </div>
           <div class="vs" id="vsLabel">DUEL</div>
           <div class="fighter-hud right">
             <div class="fname"><span id="p2Name">プレイヤー2</span><span class="tag rival" id="p2Tag" style="display:none">相手</span></div>
             <div class="hpbar"><div class="hpfill p2" id="hp2"></div></div>
             <div class="hpnum">HP <span id="hpNum2">100</span> / 100</div>
+            <div class="stambar" id="stamWrap2"><div class="stamfill" id="stam2"></div></div>
+            <div class="stamnum">スタミナ <span id="stamNum2">100</span></div>
           </div>
         </div>
 
@@ -370,6 +393,7 @@
         <div>ジャンプ： <kbd>↑</kbd> / <kbd>W</kbd> / <kbd>Space</kbd> ／ 移動スティックを上に倒す（上フリックでもOK。ジャンプボタンはないよ）</div>
         <div>攻撃： <kbd>J</kbd> / <kbd>F</kbd> ／ 「剣で斬る」ボタン（剣の届く距離で当たる）</div>
         <div>勝敗： 相手のHPを0にした方の勝ち。1発 = 20ダメージ（5発で決着）</div>
+        <div>スタミナ： 剣を振るたびにスタミナを30消費するよ。足りないと剣は振れない。振っていない間は少し間をおいて自動で回復するから、連打せず間合いを取りながら戦おう。CPUも同じルール</div>
         <div>音： 対戦中はBGMが流れ、剣の音やヒット音などの効果音も鳴るよ。上の「BGM オン／オフ」「効果音 オン／オフ」ボタンで別々に止められる</div>
         <div>被弾： 斬られると仰け反って大きく吹き飛び、その間は動けず反撃もできない。立て直すまで短い無敵時間があるから、斬り合いにならず一度距離が開くよ</div>
         <div>ランダムマッチング： 「ランダムマッチング」ボタンを押すと、今探している相手と自動でつながる。誰も探していなければ自分が待機役になり、次に探しに来た人と対戦になるよ。相手が見つかるまで画面を開いたまま待ってね。</div>
@@ -420,6 +444,8 @@ var disconnectBtn=$("disconnectBtn"), pingBox=$("pingBox"), pingVal=$("pingVal")
 var banner=$("banner"), bannerTitle=$("bannerTitle"), bannerText=$("bannerText"), rematchBtn=$("rematchBtn");
 var countNum=$("countNum"), logEl=$("log");
 var hp1El=$("hp1"), hp2El=$("hp2"), hpNum1=$("hpNum1"), hpNum2=$("hpNum2");
+var stam1El=$("stam1"), stam2El=$("stam2"), stamNum1=$("stamNum1"), stamNum2=$("stamNum2");
+var stamWrap1=$("stamWrap1"), stamWrap2=$("stamWrap2"), atkBtn=$("btnAtk");
 var p1Name=$("p1Name"), p2Name=$("p2Name"), p1Tag=$("p1Tag"), p2Tag=$("p2Tag"), vsLabel=$("vsLabel");
 var canvas=$("game"), ctx=canvas.getContext("2d");
 
@@ -439,12 +465,16 @@ function setStatus(mode, main, sub){
 var W=960, H=540, GROUND=452, GRAV=0.85;
 var FIGHTER_W=36, FIGHTER_H=76;
 var RANGE=86, DMG=20, MAXHP=100;
+/* Stamina: one swing costs ATK_COST. Regen starts STAM_DELAY frames after a
+   swing and refills STAM_REGEN per frame (~30/sec at 60fps), so mashing the
+   sword runs dry after ~3 swings and the fighter must back off to recover. */
+var MAXSTAM=100, ATK_COST=30, STAM_REGEN=0.5, STAM_DELAY=36;
 
 /* ================= Fighters ================= */
 function makeFighter(x, color, dark, isP1){
   return {
     x:x, y:GROUND-FIGHTER_H, vx:0, vy:0, facing:isP1?1:-1,
-    hp:MAXHP, onGround:true, walkPhase:0, moving:false,
+    hp:MAXHP, stam:MAXSTAM, stamDelay:0, onGround:true, walkPhase:0, moving:false,
     atkT:-1, atkHitDone:false, hurtT:0, stunT:0, invulnT:0, dead:false,
     color:color, dark:dark, isP1:isP1,
     tx:x, ty:GROUND-FIGHTER_H, tfacing:isP1?1:-1, tAtk:-1, remote:false
@@ -523,6 +553,10 @@ function sfx(name){
   if(!ensureAC()) return;
   var t=AC.currentTime, i, f;
   switch(name){
+    case "empty": /* tried to swing with no stamina: dull tired click */
+      tone({t:t, f:140, f2:80, type:"square", dur:0.09, vol:0.12});
+      noiseHit({t:t, dur:0.05, vol:0.06, fFrom:500, fTo:200, q:1});
+      break;
     case "swing": /* sword whoosh: falling band-passed noise */
       noiseHit({t:t, dur:0.13, vol:0.22, fFrom:2800, fTo:280, q:1.1});
       break;
@@ -634,6 +668,14 @@ function refreshHUD(){
   hpNum2.textContent = Math.max(0,rightHp);
   hp1El.classList.toggle("low", leftHp<=40);
   hp2El.classList.toggle("low", rightHp<=40);
+  var leftStam  = me.isP1 ? me.stam : foe.stam;
+  var rightStam = me.isP1 ? foe.stam : me.stam;
+  stam1El.style.width = Math.max(0,leftStam)+"%";
+  stam2El.style.width = Math.max(0,rightStam)+"%";
+  stamNum1.textContent = Math.floor(Math.max(0,leftStam));
+  stamNum2.textContent = Math.floor(Math.max(0,rightStam));
+  stam1El.classList.toggle("low", leftStam<ATK_COST);
+  stam2El.classList.toggle("low", rightStam<ATK_COST);
 }
 function refreshNames(){
   if(mode==="online"){
@@ -662,7 +704,7 @@ function resetPositions(){
   left.x=210; left.y=GROUND-FIGHTER_H; left.facing=1;
   right.x=714; right.y=GROUND-FIGHTER_H; right.facing=-1;
   [me,foe].forEach(function(f){
-    f.vx=0; f.vy=0; f.hp=MAXHP; f.atkT=-1; f.hurtT=0; f.stunT=0; f.invulnT=0; f.dead=false;
+    f.vx=0; f.vy=0; f.hp=MAXHP; f.stam=MAXSTAM; f.stamDelay=0; f.atkT=-1; f.hurtT=0; f.stunT=0; f.invulnT=0; f.dead=false;
     f.tx=f.x; f.ty=f.y; f.tfacing=f.facing;
   });
   roundOver=false;
@@ -715,11 +757,25 @@ rematchBtn.addEventListener("click", function(){
 });
 
 /* ================= Combat ================= */
+var lastStamDenyAt=0;
+function staminaDenied(){
+  var now=Date.now();
+  if(now-lastStamDenyAt<280) return; /* don't spam the feedback while mashing */
+  lastStamDenyAt=now;
+  sfx("empty");
+  var wrap = me.isP1 ? stamWrap1 : stamWrap2;
+  wrap.classList.remove("denied");
+  void wrap.offsetWidth; /* restart the flash animation */
+  wrap.classList.add("denied");
+}
 function tryAttack(f, isLocal){
   if(!fighting || roundOver || f.dead) return;
   if(f.stunT>0) return; /* still reeling from a hit */
   if(f.atkT>=0) return;
+  if(f.stam<ATK_COST){ if(isLocal) staminaDenied(); return; } /* out of stamina: no swing */
+  f.stam-=ATK_COST; f.stamDelay=STAM_DELAY;
   f.atkT=0; f.atkHitDone=false;
+  refreshHUD();
   if(isLocal){
     sfx("swing");
     if(mode==="online") sendData({k:"atk"});
@@ -796,6 +852,9 @@ function stepFighter(f, input){
   if(f.hurtT>0) f.hurtT--;
   if(f.stunT>0) f.stunT--;
   if(f.invulnT>0) f.invulnT--;
+  /* stamina: hold while the post-swing delay runs down, then refill gradually */
+  if(f.stamDelay>0) f.stamDelay--;
+  else if(f.stam<MAXSTAM) f.stam=Math.min(MAXSTAM, f.stam+STAM_REGEN);
 }
 function cpuThink(){
   if(!fighting || roundOver || foe.dead) return;
@@ -804,7 +863,7 @@ function cpuThink(){
   var input={left:false,right:false,jump:false};
   if(cpuTimer<=0){ cpuTimer=18+Math.random()*22; cpuDir = Math.abs(c-m)>70 ? (m>c?1:-1) : (Math.random()<0.4?(Math.random()<0.5?-1:1):0); }
   if(cpuDir<0) input.left=true; if(cpuDir>0) input.right=true;
-  if(Math.abs(c-m)<RANGE-14 && cpuAtkCd<=0 && Math.random()<0.5){ tryAttack(foe,false); cpuAtkCd=34+Math.random()*26; }
+  if(Math.abs(c-m)<RANGE-14 && cpuAtkCd<=0 && foe.stam>=ATK_COST && Math.random()<0.5){ tryAttack(foe,false); cpuAtkCd=34+Math.random()*26; }
   if(Math.random()<0.006 && foe.onGround) input.jump=true;
   stepFighter(foe, input);
   if(foe.atkT===2) sfx("swing");
@@ -1124,6 +1183,9 @@ function loop(ts){
     if(foe.invulnT>0) foe.invulnT--;
     if(foe.moving && foe.onGround) foe.walkPhase+=0.32;
     foe.moving = Math.abs(foe.tx-foe.x)>1.2;
+    /* remote stamina regen mirrors the local rule; the owner's "s" sync corrects drift */
+    if(foe.stamDelay>0) foe.stamDelay--;
+    else if(foe.stam<MAXSTAM) foe.stam=Math.min(MAXSTAM, foe.stam+STAM_REGEN);
   } else {
     stepFighter(foe, null);
   }
@@ -1131,6 +1193,10 @@ function loop(ts){
   /* hit checks: my attack vs foe (visual/local), foe attack vs me (authoritative for my HP) */
   checkHit(me, foe, false);
   checkHit(foe, me, true);
+
+  /* stamina bars move every frame (regen), and the attack button dims when a swing is unaffordable */
+  refreshHUD();
+  atkBtn.classList.toggle("tired", fighting && !roundOver && me.stam<ATK_COST);
 
   /* draw */
   drawStage();
@@ -1147,7 +1213,7 @@ function loop(ts){
     sendAcc+=dt;
     if(sendAcc>=50){
       sendAcc=0;
-      sendData({k:"s", x:Math.round(me.x*10)/10, y:Math.round(me.y*10)/10, f:me.facing, hp:me.hp, mv:me.moving?1:0});
+      sendData({k:"s", x:Math.round(me.x*10)/10, y:Math.round(me.y*10)/10, f:me.facing, hp:me.hp, st:Math.round(me.stam), mv:me.moving?1:0});
     }
   }
 }
@@ -1304,11 +1370,12 @@ function onData(d){
     case "s":
       if(typeof d.hp==="number" && d.hp<foe.hp){ foe.hurtT=16; foe.stunT=20; foe.invulnT=42; } /* foe took a hit on their side: show the reel here too */
       foe.tx=d.x; foe.ty=d.y; foe.tfacing=d.f; foe.hp=d.hp;
+      if(typeof d.st==="number") foe.stam=d.st; /* owner's stamina is authoritative */
       if(d.hp<=0 && !roundOver && fighting){ endRound(true); }
       refreshHUD();
       break;
     case "atk":
-      if(foe.atkT<0){ foe.atkT=0; foe.atkHitDone=false; sfx("swing"); }
+      if(foe.atkT<0){ foe.atkT=0; foe.atkHitDone=false; foe.stam=Math.max(0,foe.stam-ATK_COST); foe.stamDelay=STAM_DELAY; sfx("swing"); refreshHUD(); }
       break;
     case "hp":
       foe.hp=d.hp; refreshHUD();
