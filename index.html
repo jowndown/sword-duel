@@ -353,7 +353,7 @@
           <p>相手がいなくても操作感を試せるCPU練習と、1人専用のボス戦。ボスは人ではなく、口から炎の火の玉を撃ってくる鬼ドラゴン。HP100で、HPが減ると段階的に速く凶暴になるよ。</p>
           <button class="btn ghost" id="soloBtn">CPUと練習する</button>
           <button class="btn boss" id="bossBtn">🔥 ボスと戦う（鬼ドラゴン）</button>
-          <span class="note">ボスは斬られても吹き飛びにくいよ。火の玉はジャンプで避けるか、剣で斬って消せるし、盾ガード（スタミナ25消費）でも受け止められる。近づくと炎ブレスや尻尾薙ぎ払いで反撃し、画面端に追い込むと翼で頭上を飛び越えて位置を取り直すよ。オンライン対戦中は押せないよ。</span>
+          <span class="note">ボスは斬られても吹き飛びにくいよ。火の玉はジャンプで避けるか、剣で斬って消せるし、盾ガード（スタミナ15消費）でも受け止められる。近づくと炎ブレスや尻尾薙ぎ払いで反撃し、画面端に追い込むと翼で頭上を飛び越えて位置を取り直すよ。オンライン対戦中は押せないよ。</span>
         </section>
       </div>
 
@@ -411,8 +411,8 @@
         <div>移動： <kbd>←</kbd><kbd>→</kbd> または <kbd>A</kbd><kbd>D</kbd> ／ 移動スティックを左右に倒す（倒し加減で速さが変わる）</div>
         <div>ジャンプ： <kbd>↑</kbd> / <kbd>W</kbd> / <kbd>Space</kbd> ／ 移動スティックを上に倒す（上フリックでもOK。ジャンプボタンはないよ）</div>
         <div>攻撃： <kbd>J</kbd> / <kbd>F</kbd> ／ 「剣で斬る」ボタン（剣の届く距離で当たる）</div>
-        <div>ガード： <kbd>K</kbd> / <kbd>S</kbd> / <kbd>↓</kbd> を長押し ／ 「ガード」ボタンを長押し ／ スティックを下に倒す。ガード中は動けず、斬れず、ジャンプもできない</div>
-        <div>ガード成功： 攻撃を受け止めると<b>HPは減らない</b>代わりにスタミナを消費するよ（剣・ボスの近接＝20、火の玉＝25）。スタミナが足りない状態で受けると盾が割れて（ガードブレイク）ダメージを受けてしまう。ガード中はスタミナが回復しないから、必要な時だけ構えよう。ボスの火の玉・炎ブレス・尻尾薙ぎ払いもガードできるよ</div>
+        <div>ガード： <kbd>K</kbd> / <kbd>S</kbd> / <kbd>↓</kbd> を長押し ／ 「ガード」ボタンを長押し ／ スティックを下に倒す。ガード中も盾を構えたまま<b>ゆっくり（通常の半分の速さで）歩ける</b>よ。ただし斬ることとジャンプはできない</div>
+        <div>ガード成功： 攻撃を受け止めると<b>HPは減らない</b>代わりにスタミナを消費するよ。消費は剣を振る（30）より小さく、剣・ボスの近接＝10、火の玉＝15。スタミナが足りない状態で受けると盾が割れて（ガードブレイク）ダメージを受けてしまう。ガード中はスタミナが回復しないから、必要な時だけ構えよう。ボスの火の玉・炎ブレス・尻尾薙ぎ払いもガードできるよ</div>
         <div>勝敗： 相手のHPを0にした方の勝ち。1発 = 20ダメージ（5発で決着）</div>
         <div>スタミナ： 剣を振るたびにスタミナを30消費するよ。足りないと剣は振れない。振っていない間は少し間をおいて自動で回復するから、連打せず間合いを取りながら戦おう。CPUも同じルール</div>
         <div>ボス戦： 「ボスと戦う」から1人で挑めるよ。鬼ドラゴンはHP100・体が約1.4倍で、剣は持たず口から火の玉を撃ってくる（1発25ダメージ＝4発で決着）。斬っても吹き飛びにくい。火の玉はジャンプで避けるか、タイミングよく剣で斬ると消せるよ。近づきすぎると至近距離の炎ブレス（正面）や尻尾薙ぎ払い（背後）で反撃してくる（どちらも20ダメージ）。画面端に追い込んでも、翼ホップで頭上を飛び越えて間合いを取り直すから、端に固めて一方的に斬ることはできないよ。HPが62%以下で火の玉が速く・多くなり、30%以下で激怒して3連の火の玉を吐いてくるよ</div>
@@ -499,10 +499,13 @@ var MAXSTAM=100, ATK_COST=30, STAM_REGEN=0.5, STAM_DELAY=36;
 var BOSS_HP=100, BOSS_STAM=100, BOSS_DMG=25, BOSS_RANGE=118;
 var BOSS_MELEE_DMG=20, BOSS_MELEE_COST=20, BOSS_MELEE_RANGE=118;
 /* Guard: holding the shield blocks an attack completely (no HP damage) but
-   costs stamina per blocked hit — the cost mirrors the damage it negates
-   inside the HP100 rule (sword / boss melee 20, fireball 25). Blocking with
-   less stamina than the cost breaks the guard and the hit lands normally. */
-var GUARD_COST=20, GUARD_COST_FIREBALL=25;
+   costs stamina per blocked hit. Guarding is deliberately CHEAPER than
+   swinging the sword (ATK_COST=30): sword / boss melee 10, fireball 15, so
+   defending never drains the bar faster than attacking does. Blocking with
+   less stamina than the cost breaks the guard and the hit lands normally.
+   While guarding the fighter can still walk — at GUARD_MOVE_MUL of normal
+   speed — but cannot jump or swing. */
+var GUARD_COST=10, GUARD_COST_FIREBALL=15, GUARD_MOVE_MUL=0.5;
 
 /* ================= Fighters ================= */
 function makeFighter(x, color, dark, isP1, opts){
@@ -948,23 +951,24 @@ function stepFighter(f, input){
   f.moving=false;
   var stunned = f.stunT>0; /* reeling: no walking back in, no counter-attack */
   /* Shield guard: held input, grounded, not mid-swing and not reeling.
-     While guarding the fighter is rooted — no walking, jumping or swinging —
-     and stamina does not refill (see the regen rule below). */
+     Guarding no longer roots the fighter: they can walk while the shield is
+     up, at GUARD_MOVE_MUL of normal speed. Jumping and swinging stay locked
+     while guarding, and stamina does not refill (see the regen rule below). */
   f.guarding = !!(input && input.guard && fighting && !roundOver && !stunned && f.onGround && f.atkT<0);
-  if(f.guarding) f.moveAmt=0;
-  if(input && fighting && !roundOver && !stunned && !f.guarding){
+  if(input && fighting && !roundOver && !stunned){
     /* analog move: stick tilt (-1..1) wins; buttons/keys fall back to full tilt */
     var mx = (typeof input.moveX==="number") ? input.moveX
            : ((input.right?1:0) - (input.left?1:0));
+    var moveSpeed = speed * (f.guarding ? GUARD_MOVE_MUL : 1);
     if(Math.abs(mx)>0.16){
-      f.x += mx*speed;
+      f.x += mx*moveSpeed;
       f.facing = mx>0 ? 1 : -1;
       f.moving = true;
-      f.moveAmt = Math.min(1, Math.abs(mx));
+      f.moveAmt = Math.min(1, Math.abs(mx)) * (f.guarding ? GUARD_MOVE_MUL : 1);
     } else {
       f.moveAmt = 0;
     }
-    if(input.jump && f.onGround){ f.vy=-13.5; f.onGround=false; sfx("jump"); }
+    if(!f.guarding && input.jump && f.onGround){ f.vy=-13.5; f.onGround=false; sfx("jump"); }
   }
   f.x+=f.vx; f.vx*= stunned ? 0.86 : (f.leapT>0 ? 0.965 : 0.78); /* reeling body slides further; a leap keeps its momentum so the boss can clear the player */
   if(f.leapT>0) f.leapT--;
