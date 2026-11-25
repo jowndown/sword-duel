@@ -280,6 +280,7 @@
         <div>ジャンプ： <kbd>↑</kbd> / <kbd>W</kbd> / <kbd>Space</kbd> ／ ジャンプボタン</div>
         <div>攻撃： <kbd>J</kbd> / <kbd>F</kbd> ／ 「剣で斬る」ボタン（剣の届く距離で当たる）</div>
         <div>勝敗： 相手のHPを0にした方の勝ち。1発 = 20ダメージ（5発で決着）</div>
+        <div>被弾： 斬られると仰け反って大きく吹き飛び、その間は動けず反撃もできない。立て直すまで短い無敵時間があるから、斬り合いにならず一度距離が開くよ</div>
         <div>接続の仕組み： PeerJS（WebRTC）でブラウザ同士が直接通信するから、アカウント登録や自前のサーバーは不要（接続の仲介には PeerJS の無料サーバーを使うよ）。ラグは回線次第。</div>
         <div>注意： 相手の姿は約0.05秒ごとに送られてくる位置で補間表示している。動きがカクつくときは回線の影響が大きい。</div>
       </div>
@@ -325,7 +326,7 @@ function makeFighter(x, color, dark, isP1){
   return {
     x:x, y:GROUND-FIGHTER_H, vx:0, vy:0, facing:isP1?1:-1,
     hp:MAXHP, onGround:true, walkPhase:0, moving:false,
-    atkT:-1, atkHitDone:false, hurtT:0, dead:false,
+    atkT:-1, atkHitDone:false, hurtT:0, stunT:0, invulnT:0, dead:false,
     color:color, dark:dark, isP1:isP1,
     tx:x, ty:GROUND-FIGHTER_H, tfacing:isP1?1:-1, tAtk:-1, remote:false
   };
@@ -403,7 +404,7 @@ function resetPositions(){
   left.x=210; left.y=GROUND-FIGHTER_H; left.facing=1;
   right.x=714; right.y=GROUND-FIGHTER_H; right.facing=-1;
   [me,foe].forEach(function(f){
-    f.vx=0; f.vy=0; f.hp=MAXHP; f.atkT=-1; f.hurtT=0; f.dead=false;
+    f.vx=0; f.vy=0; f.hp=MAXHP; f.atkT=-1; f.hurtT=0; f.stunT=0; f.invulnT=0; f.dead=false;
     f.tx=f.x; f.ty=f.y; f.tfacing=f.facing;
   });
   roundOver=false;
@@ -455,6 +456,7 @@ rematchBtn.addEventListener("click", function(){
 /* ================= Combat ================= */
 function tryAttack(f, isLocal){
   if(!fighting || roundOver || f.dead) return;
+  if(f.stunT>0) return; /* still reeling from a hit */
   if(f.atkT>=0) return;
   f.atkT=0; f.atkHitDone=false;
   if(isLocal){
@@ -470,6 +472,7 @@ function facingToward(att, def){
 /* attacker hits defender check, evaluated on the DEFENDER's client for online fairness */
 function checkHit(att, def, defIsLocal){
   if(att.atkT<0 || att.atkHitDone) return;
+  if(def.dead || def.stunT>0 || def.invulnT>0) return; /* no chain hits while reeling / briefly invincible */
   if(att.atkT<6 || att.atkT>16) return; /* active frames of the swing */
   if(dist(att,def) > RANGE) return;
   if(Math.abs(att.y-def.y) > 74) return;
@@ -480,9 +483,18 @@ function checkHit(att, def, defIsLocal){
 }
 function applyDamage(def, att){
   def.hp=Math.max(0, def.hp-DMG);
-  def.hurtT=10;
-  def.vx = (att.facing)*6.5;
-  def.vy = -3.2; def.onGround=false;
+  /* Knockback: reel back away from the attacker so every hit opens real distance.
+     dir is based on positions (not facing) so it always pushes the defender away. */
+  var dir = (def.x+FIGHTER_W/2) >= (att.x+FIGHTER_W/2) ? 1 : -1;
+  def.vx = dir*13.5;
+  def.vy = -4.4; def.onGround=false;
+  /* hitstun (のけぞり): defender can't move or attack while reeling */
+  def.hurtT=16;
+  def.stunT=20;
+  /* brief invincibility after a hit so a swing-spam can't chain hits */
+  def.invulnT=42;
+  /* attacker's swing also checks them slightly, widening the gap */
+  if(!att.dead) att.vx = -dir*2.2;
   sfx("hit");
   refreshHUD();
   if(def.hp<=0){
@@ -497,12 +509,13 @@ function stepFighter(f, input){
   if(f.dead){ f.atkT=-1; return; }
   var speed=4.4;
   f.moving=false;
-  if(input && fighting && !roundOver){
+  var stunned = f.stunT>0; /* reeling: no walking back in, no counter-attack */
+  if(input && fighting && !roundOver && !stunned){
     if(input.left){ f.x-=speed; f.facing=-1; f.moving=true; }
     if(input.right){ f.x+=speed; f.facing=1; f.moving=true; }
     if(input.jump && f.onGround){ f.vy=-13.5; f.onGround=false; sfx("jump"); }
   }
-  f.x+=f.vx; f.vx*=0.78;
+  f.x+=f.vx; f.vx*= stunned ? 0.86 : 0.78; /* reeling body slides further before friction bites */
   if(Math.abs(f.vx)<0.05) f.vx=0;
   f.vy+=GRAV; f.y+=f.vy;
   if(f.y>=GROUND-FIGHTER_H){ f.y=GROUND-FIGHTER_H; f.vy=0; f.onGround=true; }
@@ -511,6 +524,8 @@ function stepFighter(f, input){
   if(f.moving && f.onGround) f.walkPhase+=0.32; else if(f.onGround) f.walkPhase*=0.8;
   if(f.atkT>=0){ f.atkT++; if(f.atkT>22) f.atkT=-1; }
   if(f.hurtT>0) f.hurtT--;
+  if(f.stunT>0) f.stunT--;
+  if(f.invulnT>0) f.invulnT--;
 }
 function cpuThink(){
   if(!fighting || roundOver || foe.dead) return;
@@ -547,6 +562,14 @@ function drawFighter(f){
   var swing2 = Math.sin(ph+Math.PI);
   var bob = f.dead ? 0 : (air ? -2 : (moving ? Math.abs(Math.sin(ph))* -2.2 : Math.sin(now*2.2 + (isP1?0:1.4))*0.9));
   var lean = f.dead ? 0 : (moving ? f.facing*0.06 : (air ? f.facing*0.08 : Math.sin(now*1.6)*0.015));
+  /* reel back (のけぞり): upper body thrown away from the blow while hurtT runs down */
+  if(f.hurtT>0 && !f.dead){
+    var reel = f.hurtT/16;
+    lean += -f.facing * 0.38 * reel;
+    bob += 3.5 * reel;
+  }
+  /* brief post-hit invincibility shimmer */
+  if(f.invulnT>0 && f.hurtT<=0 && !f.dead) ctx.globalAlpha = 0.62 + 0.28*Math.sin(now*26);
   /* palette per fighter */
   var skin = flash ? "#ffb3ab" : (isP1 ? "#f2c48d" : "#e8a87a");
   var skinShadow = flash ? "#e88a80" : (isP1 ? "#d99a5b" : "#c97f4e");
@@ -814,7 +837,7 @@ function loop(ts){
   /* local player */
   var input={ left:!!(keys.ArrowLeft||keys.KeyA||touch.left), right:!!(keys.ArrowRight||keys.KeyD||touch.right), jump:false };
   stepFighter(me, input);
-  if(touch.jumpQueued){ touch.jumpQueued=false; if(me.onGround&&fighting&&!roundOver){ me.vy=-13.5; me.onGround=false; sfx("jump"); } }
+  if(touch.jumpQueued){ touch.jumpQueued=false; if(me.onGround&&fighting&&!roundOver&&me.stunT<=0){ me.vy=-13.5; me.onGround=false; sfx("jump"); } }
 
   if(mode==="solo"){ cpuThink(); }
   else if(mode==="online"){
@@ -825,6 +848,8 @@ function loop(ts){
     foe.facing = foe.tfacing;
     if(foe.atkT>=0){ foe.atkT++; if(foe.atkT>22) foe.atkT=-1; }
     if(foe.hurtT>0) foe.hurtT--;
+    if(foe.stunT>0) foe.stunT--;
+    if(foe.invulnT>0) foe.invulnT--;
     if(foe.moving && foe.onGround) foe.walkPhase+=0.32;
     foe.moving = Math.abs(foe.tx-foe.x)>1.2;
   } else {
@@ -862,7 +887,7 @@ document.addEventListener("keydown", function(e){
   keys[e.code]=true;
   if(["ArrowLeft","ArrowRight","ArrowUp","Space"].indexOf(e.code)>=0) e.preventDefault();
   if(e.code==="ArrowUp"||e.code==="KeyW"||e.code==="Space"){
-    if(me.onGround&&fighting&&!roundOver){ me.vy=-13.5; me.onGround=false; sfx("jump"); }
+    if(me.onGround&&fighting&&!roundOver&&me.stunT<=0){ me.vy=-13.5; me.onGround=false; sfx("jump"); }
   }
   if(e.code==="KeyJ"||e.code==="KeyF"){ tryAttack(me,true); }
 });
@@ -951,6 +976,7 @@ function onData(d){
       startCountdown();
       break;
     case "s":
+      if(typeof d.hp==="number" && d.hp<foe.hp){ foe.hurtT=16; foe.stunT=20; foe.invulnT=42; } /* foe took a hit on their side: show the reel here too */
       foe.tx=d.x; foe.ty=d.y; foe.tfacing=d.f; foe.hp=d.hp;
       if(d.hp<=0 && !roundOver && fighting){ endRound(true); }
       refreshHUD();
