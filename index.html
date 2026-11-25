@@ -336,10 +336,10 @@
 
         <section class="card">
           <h2><span class="chip solo">3</span>1人で練習 ＆ ボス戦</h2>
-          <p>相手がいなくても操作感を試せるCPU練習と、1人専用のボス戦。ボスは体が大きくHP300・リーチ長めで、HPが減ると段階的に速く凶暴になるよ。</p>
+          <p>相手がいなくても操作感を試せるCPU練習と、1人専用のボス戦。ボスは人ではなく、口から炎の火の玉を撃ってくる鬼ドラゴン。HP300で、HPが減ると段階的に速く凶暴になるよ。</p>
           <button class="btn ghost" id="soloBtn">CPUと練習する</button>
-          <button class="btn boss" id="bossBtn">⚔ ボスと戦う（黒騎士）</button>
-          <span class="note">ボスは斬られても吹き飛びにくいよ。スタミナ管理と間合いが大事。オンライン対戦中は押せないよ。</span>
+          <button class="btn boss" id="bossBtn">🔥 ボスと戦う（鬼ドラゴン）</button>
+          <span class="note">ボスは斬られても吹き飛びにくいよ。火の玉はジャンプで避けるか、剣で斬って消せる。オンライン対戦中は押せないよ。</span>
         </section>
       </div>
 
@@ -398,7 +398,7 @@
         <div>攻撃： <kbd>J</kbd> / <kbd>F</kbd> ／ 「剣で斬る」ボタン（剣の届く距離で当たる）</div>
         <div>勝敗： 相手のHPを0にした方の勝ち。1発 = 20ダメージ（5発で決着）</div>
         <div>スタミナ： 剣を振るたびにスタミナを30消費するよ。足りないと剣は振れない。振っていない間は少し間をおいて自動で回復するから、連打せず間合いを取りながら戦おう。CPUも同じルール</div>
-        <div>ボス戦： 「ボスと戦う」から1人で挑めるよ。黒騎士はHP300・体が約1.4倍・剣のリーチが長く1発25ダメージ。斬っても吹き飛びにくい。HPが62%以下で加速、30%以下で激怒してダッシュ斬りや連続斬りを使ってくるよ</div>
+        <div>ボス戦： 「ボスと戦う」から1人で挑めるよ。鬼ドラゴンはHP300・体が約1.4倍で、剣は持たず口から火の玉を撃ってくる（1発25ダメージ）。斬っても吹き飛びにくい。火の玉はジャンプで避けるか、タイミングよく剣で斬ると消せるよ。HPが62%以下で火の玉が速く・多くなり、30%以下で激怒して3連の火の玉を吐いてくるよ</div>
         <div>音： 対戦中はBGMが流れ、剣の音やヒット音などの効果音も鳴るよ。上の「BGM オン／オフ」「効果音 オン／オフ」ボタンで別々に止められる</div>
         <div>被弾： 斬られると仰け反って大きく吹き飛び、その間は動けず反撃もできない。立て直すまで短い無敵時間があるから、斬り合いにならず一度距離が開くよ</div>
         <div>ランダムマッチング： 「ランダムマッチング」ボタンを押すと、今探している相手と自動でつながる。誰も探していなければ自分が待機役になり、次に探しに来た人と対戦になるよ。相手が見つかるまで画面を開いたまま待ってね。</div>
@@ -485,7 +485,7 @@ function makeFighter(x, color, dark, isP1, opts){
   return {
     x:x, y:GROUND-FIGHTER_H, vx:0, vy:0, facing:isP1?1:-1,
     hp:maxHp, maxHp:maxHp, stam:maxStam, maxStam:maxStam, stamDelay:0, onGround:true, walkPhase:0, moving:false,
-    atkT:-1, atkHitDone:false, hurtT:0, stunT:0, invulnT:0, dead:false,
+    atkT:-1, atkHitDone:false, castT:-1, hurtT:0, stunT:0, invulnT:0, dead:false,
     color:color, dark:dark, isP1:isP1,
     isBoss:!!opts.isBoss, scale:opts.scale||1, dmg:opts.dmg||DMG, range:opts.range||RANGE,
     speedMul:opts.speedMul||1, stamRegen:opts.stamRegen||STAM_REGEN,
@@ -501,6 +501,7 @@ var fighting=false, roundOver=false;
 var keys={};
 var cpuTimer=0, cpuDir=0, cpuAtkCd=0;
 var isBossBattle=false, bossTimer=0, bossDir=0, bossAtkCd=0, bossDashCd=0, bossPhase=1, bossPhaseAnnounced=1, bossDoubleCd=0;
+var projectiles=[]; /* boss fireballs in flight (boss fights are solo-only, simulated locally) */
 
 /* ================= Audio: BGM + SFX (all WebAudio synth) =================
    One shared AudioContext, two independent gain buses so BGM and SFX can be
@@ -586,6 +587,14 @@ function sfx(name){
     case "go":
       tone({t:t, f:880, dur:0.24, type:"square", vol:0.17});
       tone({t:t, f:1318, dur:0.24, type:"triangle", vol:0.10});
+      break;
+    case "fire": /* dragon spits a fireball: whooshing flame burst */
+      noiseHit({t:t, dur:0.28, vol:0.26, fFrom:900, fTo:160, q:0.7, type:"lowpass"});
+      tone({t:t, f:320, f2:90, type:"sawtooth", dur:0.22, vol:0.10, lp:900});
+      break;
+    case "firehit": /* fireball explodes on the player */
+      tone({t:t, f:150, f2:44, type:"sawtooth", dur:0.3, vol:0.28, lp:1200});
+      noiseHit({t:t, dur:0.26, vol:0.26, fFrom:1300, fTo:120, q:0.7});
       break;
     case "ko": /* finishing blow: big downward crash */
       tone({t:t, f:230, f2:38, type:"sawtooth", dur:0.5, vol:0.30, lp:1600});
@@ -704,7 +713,7 @@ function refreshNames(){
            p2Tag.style.display=""; p2Tag.textContent="あなた"; p2Tag.className="tag me"; }
     vsLabel.textContent="ONLINE";
   } else if(mode==="solo" && isBossBattle){
-    p1Name.textContent="プレイヤー1"; p2Name.textContent="黒騎士ボス";
+    p1Name.textContent="プレイヤー1"; p2Name.textContent="鬼ドラゴンボス";
     p1Tag.style.display=""; p1Tag.textContent="あなた"; p1Tag.className="tag me";
     p2Tag.style.display=""; p2Tag.textContent="BOSS"; p2Tag.className="tag boss";
     vsLabel.textContent="BOSS戦";
@@ -726,10 +735,11 @@ function resetPositions(){
   left.x=210; left.y=GROUND-FIGHTER_H; left.facing=1;
   right.x=714; right.y=GROUND-FIGHTER_H; right.facing=-1;
   [me,foe].forEach(function(f){
-    f.vx=0; f.vy=0; f.hp=f.maxHp; f.stam=f.maxStam; f.stamDelay=0; f.atkT=-1; f.hurtT=0; f.stunT=0; f.invulnT=0; f.dead=false;
+    f.vx=0; f.vy=0; f.hp=f.maxHp; f.stam=f.maxStam; f.stamDelay=0; f.atkT=-1; f.castT=-1; f.hurtT=0; f.stunT=0; f.invulnT=0; f.dead=false;
     f.tx=f.x; f.ty=f.y; f.tfacing=f.facing;
   });
-  bossPhase=1; bossPhaseAnnounced=1; bossAtkCd=30; bossDashCd=90; bossTimer=0;
+  projectiles.length=0;
+  bossPhase=1; bossPhaseAnnounced=1; bossAtkCd=46; bossDashCd=90; bossTimer=0;
   roundOver=false;
   refreshHUD();
 }
@@ -769,8 +779,8 @@ function endRound(winnerIsMe){
   setTimeout(function(){ sfx(winnerIsMe?"win":"lose"); }, 500);
   setTimeout(function(){
     if(isBossBattle){
-      if(winnerIsMe) showBanner("🏆 ボス撃破！！", "黒騎士を倒したよ！ HP300のボス戦クリア。もう一回挑む？", true);
-      else showBanner("ボスに倒された…", "黒騎士は強かった。HPを削るほど速くなるから、後半は特に慎重に。もう一回挑む？", true);
+      if(winnerIsMe) showBanner("🏆 ボス撃破！！", "鬼ドラゴンを倒したよ！ HP300のボス戦クリア。もう一回挑む？", true);
+      else showBanner("ボスに倒された…", "鬼ドラゴンの炎は強かった。HPを削るほど火の玉が激しくなるから、後半は特に慎重に。もう一回挑む？", true);
     }
     else if(winnerIsMe) showBanner("🏆 あなたの勝ち！", mode==="solo"?"CPUを倒したよ。もう一回やる？":"見事な一本。もう一回やる？", true);
     else showBanner("相手の勝ち…", mode==="solo"?"CPUに倒されちゃった。もう一回やる？":"あと少しだった。もう一回やる？", true);
@@ -878,6 +888,7 @@ function stepFighter(f, input){
   if(f.x>W-FIGHTER_W-8) f.x=W-FIGHTER_W-8;
   if(f.moving && f.onGround) f.walkPhase+=0.32*(0.45+0.55*(f.moveAmt||1)); else if(f.onGround) f.walkPhase*=0.8;
   if(f.atkT>=0){ f.atkT++; if(f.atkT>22) f.atkT=-1; }
+  if(f.castT>=0){ f.castT++; if(f.castT>24) f.castT=-1; }
   if(f.hurtT>0) f.hurtT--;
   if(f.stunT>0) f.stunT--;
   if(f.invulnT>0) f.invulnT--;
@@ -897,6 +908,84 @@ function cpuThink(){
   stepFighter(foe, input);
   if(foe.atkT===2) sfx("swing");
 }
+/* ================= Boss: oni-dragon fireballs =================
+   The boss is not a swordsman: it keeps its distance and spits fireballs
+   from its mouth. Phase 2 spits faster and sometimes two at once; phase 3
+   spits three-way barrages. Fireballs deal BOSS_DMG on a direct hit, can be
+   jumped over, and can be cut out of the air with a well-timed sword swing. */
+function bossMouth(f){
+  var sc=f.scale||1;
+  return { x:(f.x+FIGHTER_W/2)+f.facing*27*sc, y:(f.y+FIGHTER_H)-82*sc };
+}
+function bossShoot(spread){
+  var mo=bossMouth(foe);
+  var tx=me.x+FIGHTER_W/2, ty=me.y+FIGHTER_H*0.45;
+  var dx=tx-mo.x, dy=ty-mo.y;
+  var speed = bossPhase===1?5.4:(bossPhase===2?6.1:6.9);
+  var ang=Math.atan2(dy,dx)+(spread||0);
+  projectiles.push({ x:mo.x, y:mo.y, vx:Math.cos(ang)*speed, vy:Math.sin(ang)*speed,
+                     r: bossPhase===3?13:12, life:220, seed:Math.random()*10 });
+}
+function bossCast(){
+  foe.stam-=ATK_COST; foe.stamDelay=STAM_DELAY;
+  foe.castT=0;
+  foe.facing = (me.x>=foe.x) ? 1 : -1;
+  if(bossPhase===3){ bossShoot(-0.16); bossShoot(0); bossShoot(0.16); }
+  else if(bossPhase===2 && Math.random()<0.45){ bossShoot(-0.09); bossShoot(0.09); }
+  else { bossShoot(0); }
+  sfx("fire");
+  refreshHUD();
+}
+function updateProjectiles(){
+  for(var i=projectiles.length-1;i>=0;i--){
+    var p=projectiles[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.045; p.life--;
+    var gone = p.life<=0 || p.x<-30 || p.x>W+30 || p.y>GROUND+6 || p.y<-40;
+    /* the player's sword can cut a fireball out of the air */
+    if(!gone && me.atkT>=5 && me.atkT<=16 && !me.dead){
+      var sx=me.x+FIGHTER_W/2, sy=me.y+FIGHTER_H*0.45;
+      if(Math.abs(p.x-sx)<(me.range||RANGE)*0.95 && Math.abs(p.y-sy)<52 &&
+         ((me.facing===1 && p.x>=sx-6) || (me.facing===-1 && p.x<=sx+6))){
+        sfx("hit");
+        gone=true;
+      }
+    }
+    /* direct hit on the player (same no-chain-hit rules as a sword hit) */
+    if(!gone && !me.dead && me.stunT<=0 && me.invulnT<=0){
+      var px=me.x+FIGHTER_W/2, py=me.y+FIGHTER_H*0.5;
+      var ddx=p.x-px, ddy=p.y-py;
+      if(ddx*ddx+ddy*ddy < (p.r+24)*(p.r+24)){
+        var keepVx=foe.vx;
+        applyDamage(me, foe);
+        foe.vx=keepVx; /* the dragon is not pushed back by its own fireball */
+        sfx("firehit");
+        gone=true;
+      }
+    }
+    if(gone) projectiles.splice(i,1);
+  }
+}
+function drawProjectiles(){
+  for(var i=0;i<projectiles.length;i++){
+    var p=projectiles[i];
+    var fl=1+0.16*Math.sin(performance.now()*0.03+p.seed*7);
+    ctx.save();
+    ctx.translate(p.x,p.y);
+    var grd=ctx.createRadialGradient(0,0,1, 0,0,p.r*2.1*fl);
+    grd.addColorStop(0,"rgba(255,240,180,.95)");
+    grd.addColorStop(0.35,"rgba(255,160,50,.85)");
+    grd.addColorStop(0.7,"rgba(230,70,25,.45)");
+    grd.addColorStop(1,"rgba(200,40,15,0)");
+    ctx.fillStyle=grd;
+    ctx.beginPath(); ctx.arc(0,0,p.r*2.1*fl,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle="#fff3b0";
+    ctx.beginPath(); ctx.arc(0,0,p.r*0.45,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle="rgba(255,120,40,.7)";
+    ctx.beginPath(); ctx.arc(-p.vx*2.2,-p.vy*2.2,p.r*0.4,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-p.vx*4,-p.vy*4+3,p.r*0.25,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+}
 function bossThink(){
   if(!fighting || roundOver || foe.dead) return;
   bossTimer--; bossAtkCd--; bossDashCd--; bossDoubleCd--;
@@ -904,52 +993,302 @@ function bossThink(){
   bossPhase = ratio>0.62 ? 1 : (ratio>0.3 ? 2 : 3);
   if(bossPhase>bossPhaseAnnounced){
     bossPhaseAnnounced=bossPhase;
-    foe.speedMul = bossPhase===2 ? 1.08 : 1.28;
-    foe.stamRegen = bossPhase===2 ? 0.65 : 0.85;
-    countNum.textContent = bossPhase===2 ? "ボスが加速した！" : "ボスが怒り狂った！！";
+    foe.speedMul = bossPhase===2 ? 1.02 : 1.18;
+    foe.stamRegen = bossPhase===2 ? 0.7 : 0.95;
+    countNum.textContent = bossPhase===2 ? "ボスの炎が激しくなった！" : "ボスが怒り狂った！！";
     countNum.classList.add("show");
     countNum.style.fontSize="clamp(28px,6vw,52px)";
     setTimeout(function(){ countNum.classList.remove("show"); countNum.style.fontSize=""; }, 900);
     sfx("ko");
-    log(bossPhase===2 ? "ボス フェーズ2：加速" : "ボス フェーズ3：激怒");
+    log(bossPhase===2 ? "ボス フェーズ2：火の玉が速く・多く" : "ボス フェーズ3：激怒・3連の火の玉");
   }
   var c=foe.x+FIGHTER_W/2, m=me.x+FIGHTER_W/2;
   var gap=Math.abs(c-m), dirToMe = m>c?1:-1;
   var input={left:false,right:false,jump:false};
+  /* The dragon fights at range: close in when far away, back off when the
+     player gets under its snout, otherwise prowl. */
   if(bossTimer<=0){
-    bossTimer = bossPhase===1 ? 16+Math.random()*14 : 10+Math.random()*10;
-    if(gap>(foe.range||BOSS_RANGE)+10) bossDir=dirToMe;
-    else if(gap<62) bossDir = Math.random()<(bossPhase===3?0.25:0.45) ? -dirToMe : 0;
-    else bossDir = Math.random()<0.75 ? dirToMe : 0;
+    bossTimer = bossPhase===1 ? 16+Math.random()*14 : 11+Math.random()*10;
+    if(gap>400) bossDir=dirToMe;
+    else if(gap<190) bossDir=-dirToMe;
+    else bossDir = Math.random()<0.4 ? 0 : (Math.random()<0.5?dirToMe:-dirToMe);
   }
-  /* dash attack (phase 2+): lunge from mid-range, then slash on arrival */
-  if(bossPhase>=2 && bossDashCd<=0 && gap>120 && gap<340 && foe.onGround && foe.stam>=ATK_COST){
-    foe.vx = dirToMe * (bossPhase===3?13:11);
-    foe.vy = -2.2; foe.onGround=false;
-    bossDashCd = bossPhase===3 ? 130+Math.random()*70 : 180+Math.random()*90;
-    bossAtkCd = Math.min(bossAtkCd, 14);
+  /* phase 2+: wing-hop backwards to reopen distance when crowded */
+  if(bossPhase>=2 && bossDashCd<=0 && gap<170 && foe.onGround){
+    foe.vx = -dirToMe * 10;
+    foe.vy = -6.5; foe.onGround=false;
+    bossDashCd = bossPhase===3 ? 150+Math.random()*80 : 210+Math.random()*90;
     sfx("jump");
   }
   if(bossDir<0) input.left=true; if(bossDir>0) input.right=true;
-  /* jump-in attack in later phases */
-  if(bossPhase>=2 && gap>110 && gap<240 && foe.onGround && Math.random()<0.012) input.jump=true;
-  if(gap < (foe.range||BOSS_RANGE)-8 && bossAtkCd<=0 && foe.stam>=ATK_COST){
-    var atkChance = bossPhase===1?0.55:(bossPhase===2?0.7:0.85);
-    if(Math.random()<atkChance){
-      tryAttack(foe,false);
-      bossAtkCd = bossPhase===1 ? 42+Math.random()*22 : (bossPhase===2 ? 32+Math.random()*16 : 24+Math.random()*12);
-      /* phase 3: occasional immediate second slash */
-      if(bossPhase===3 && bossDoubleCd<=0 && Math.random()<0.4){ bossDoubleCd=90; setTimeout(function(){ if(fighting&&!roundOver&&!foe.dead&&foe.stam>=ATK_COST&&Math.abs((foe.x+FIGHTER_W/2)-(me.x+FIGHTER_W/2))<(foe.range||BOSS_RANGE)+20){ tryAttack(foe,false); if(foe.atkT===0) sfx("swing"); } }, 340); }
+  /* spit fireballs on cooldown; stamina gates the barrage like a sword swing */
+  if(bossAtkCd<=0){
+    if(foe.stam>=ATK_COST && gap>70){
+      bossCast();
+      bossAtkCd = bossPhase===1 ? 74+Math.random()*26 : (bossPhase===2 ? 56+Math.random()*18 : 44+Math.random()*14);
     } else {
-      bossAtkCd=10;
+      bossAtkCd=12; /* wait for stamina / a little distance */
     }
   }
   stepFighter(foe, input);
-  if(foe.atkT===2) sfx("swing");
 }
 
 /* ================= Drawing ================= */
+/* ================= Boss drawing: oni-dragon =================
+   A horned, winged dragon — no sword, no shield, no human gear. Drawn in
+   the same local space as drawFighter (origin at the feet, facing applied
+   explicitly), with a snout that glows and a jaw that opens while casting
+   (castT), which is exactly when a fireball leaves its mouth. */
+function drawBossCreature(f){
+  var cx=f.x+FIGHTER_W/2, feet=f.y+FIGHTER_H;
+  var now=performance.now()*0.001;
+  ctx.save();
+  ctx.translate(cx, feet);
+  if(f.scale && f.scale!==1) ctx.scale(f.scale, f.scale);
+  if(!f.dead){
+    /* ember aura */
+    ctx.save();
+    ctx.globalAlpha=0.20+0.07*Math.sin(now*3.4);
+    ctx.fillStyle="#e64a19";
+    ctx.beginPath(); ctx.ellipse(0,-46,40,56,0,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+  if(f.dead){
+    ctx.translate(0,8);
+    ctx.rotate(f.facing*1.5);
+    ctx.globalAlpha=0.92;
+  }
+  var flash = f.hurtT>0 && (f.hurtT%4<2);
+  var scaleCol  = flash ? "#ff7a5c" : "#a52a20";
+  var scaleDark = flash ? "#d84a35" : "#671209";
+  var bellyCol  = flash ? "#ffd9a8" : "#e8b06a";
+  var hornCol   = "#e8ddc4";
+  var wingCol   = flash ? "#c94f3d" : "#7e1f16";
+  var air = !f.onGround;
+  var moving = f.moving && f.onGround && !f.dead;
+  var ph = f.walkPhase;
+  var bob = f.dead ? 0 : (air ? -3 : (moving ? Math.abs(Math.sin(ph))*-2 : Math.sin(now*2.4)*1.1));
+  var lean = f.dead ? 0 : f.facing*(moving?0.05:0.02);
+  if(f.hurtT>0 && !f.dead){ lean += -f.facing*0.30*(f.hurtT/9); bob += 2.5*(f.hurtT/9); }
+  if(f.invulnT>0 && f.hurtT<=0 && !f.dead) ctx.globalAlpha = 0.65+0.25*Math.sin(now*24);
+  var casting = f.castT>=0 && !f.dead;
+  var castK = casting ? Math.sin(Math.min(1,f.castT/24)*Math.PI) : 0;
+  ctx.rotate(lean);
+  ctx.translate(0, bob);
+
+  function seg(x1,y1,x2,y2,col,w){
+    ctx.strokeStyle=col; ctx.lineWidth=w; ctx.lineCap="round";
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  }
+  function clawFoot(fx,fy){
+    ctx.fillStyle=hornCol;
+    for(var t=-1;t<=1;t++){
+      ctx.beginPath();
+      ctx.moveTo(fx+t*4.5-2.2, fy-3);
+      ctx.lineTo(fx+f.facing*10+t*4.5, fy+1.5);
+      ctx.lineTo(fx+t*4.5+2.2, fy-3);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  function clawHand(hx,hy){
+    ctx.fillStyle=scaleDark; ctx.beginPath(); ctx.arc(hx,hy,5,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle=hornCol; ctx.lineWidth=2; ctx.lineCap="round";
+    for(var t=-1;t<=1;t++){
+      ctx.beginPath(); ctx.moveTo(hx,hy);
+      ctx.lineTo(hx+f.facing*8, hy+5+t*3.4); ctx.stroke();
+    }
+  }
+
+  /* ---- tail: thick, curling, spade tip ---- */
+  var tailSway=Math.sin(now*2.2)*5 + (moving?Math.sin(ph)*3:0);
+  ctx.strokeStyle=scaleDark; ctx.lineCap="round";
+  ctx.lineWidth=13;
+  ctx.beginPath();
+  ctx.moveTo(-f.facing*10,-34);
+  ctx.quadraticCurveTo(-f.facing*34,-30+tailSway*0.4, -f.facing*44,-12+tailSway);
+  ctx.stroke();
+  ctx.lineWidth=8;
+  ctx.beginPath();
+  ctx.moveTo(-f.facing*44,-12+tailSway);
+  ctx.quadraticCurveTo(-f.facing*53,-4+tailSway, -f.facing*46,4+tailSway);
+  ctx.stroke();
+  ctx.fillStyle=hornCol;
+  ctx.save(); ctx.translate(-f.facing*46,5+tailSway); ctx.rotate(f.facing*0.5);
+  ctx.beginPath(); ctx.moveTo(0,-7); ctx.lineTo(5,2); ctx.lineTo(0,9); ctx.lineTo(-5,2); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  /* tail spikes */
+  ctx.fillStyle=hornCol;
+  [[-24,-33],[-34,-26],[-41,-17]].forEach(function(sp){
+    ctx.beginPath();
+    ctx.moveTo(f.facing*sp[0]-3, sp[1]); ctx.lineTo(f.facing*sp[0], sp[1]-7); ctx.lineTo(f.facing*sp[0]+3, sp[1]);
+    ctx.closePath(); ctx.fill();
+  });
+
+  /* ---- wings: bat-like membranes behind the torso, slow flap ---- */
+  var flap = f.dead ? -0.7 : (air ? Math.sin(now*10)*0.35 : Math.sin(now*2.6)*0.14) - castK*0.25;
+  /* far wing (darker, smaller) */
+  ctx.fillStyle="rgba(52,9,6,.88)";
+  ctx.beginPath();
+  ctx.moveTo(-f.facing*2,-72);
+  ctx.lineTo(-f.facing*34,-92-flap*16);
+  ctx.lineTo(-f.facing*27,-66);
+  ctx.lineTo(-f.facing*16,-78);
+  ctx.lineTo(-f.facing*7,-56);
+  ctx.closePath(); ctx.fill();
+  /* near wing */
+  ctx.fillStyle=wingCol;
+  ctx.beginPath();
+  ctx.moveTo(f.facing*3,-76);
+  ctx.lineTo(-f.facing*47,-102-flap*26);
+  ctx.quadraticCurveTo(-f.facing*38,-78, -f.facing*33,-70);
+  ctx.quadraticCurveTo(-f.facing*27,-84, -f.facing*20,-66);
+  ctx.quadraticCurveTo(-f.facing*12,-76, f.facing*6,-56);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle=scaleDark; ctx.lineWidth=2.4; ctx.lineCap="round";
+  ctx.beginPath(); ctx.moveTo(f.facing*3,-76); ctx.lineTo(-f.facing*47,-102-flap*26); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(f.facing*3,-76); ctx.lineTo(-f.facing*30,-72); ctx.stroke();
+  ctx.fillStyle=hornCol; /* wing-tip claw */
+  ctx.beginPath(); ctx.arc(-f.facing*47,-102-flap*26,2.6,0,Math.PI*2); ctx.fill();
+
+  /* ---- legs: thick, clawed ---- */
+  var hipY=-36;
+  var legA, legB;
+  if(f.dead){ legA={kx:12,ky:-18,fx:22,fy:-2}; legB={kx:-10,ky:-16,fx:-18,fy:-1}; }
+  else if(air){ legA={kx:f.facing*11,ky:-20,fx:f.facing*17,fy:-7}; legB={kx:-f.facing*7,ky:-19,fx:-f.facing*11,fy:-11}; }
+  else if(moving){
+    var s1=Math.sin(ph)*10, s2=Math.sin(ph+Math.PI)*10;
+    var l1=Math.max(0,Math.sin(ph))*6, l2=Math.max(0,Math.sin(ph+Math.PI))*6;
+    legA={kx:s1*0.55,ky:-19-l1*0.4,fx:s1,fy:-1-l1};
+    legB={kx:s2*0.55,ky:-19-l2*0.4,fx:s2,fy:-1-l2};
+  } else { legA={kx:5,ky:-19,fx:7,fy:-1}; legB={kx:-5,ky:-19,fx:-7,fy:-1}; }
+  seg(-4,hipY, legB.kx,legB.ky, scaleDark, 13);
+  seg(legB.kx,legB.ky, legB.fx,legB.fy-3, scaleDark, 10);
+  clawFoot(legB.fx, legB.fy);
+  seg(4,hipY, legA.kx,legA.ky, scaleCol, 13);
+  seg(legA.kx,legA.ky, legA.fx,legA.fy-3, scaleCol, 10);
+  clawFoot(legA.fx, legA.fy);
+
+  /* ---- back arm (hangs, clawed) ---- */
+  var bShX=-f.facing*13, bShY=-62;
+  var bElX=-f.facing*19, bElY=-49+(moving?Math.sin(ph+Math.PI)*3:Math.sin(now*2.2)*1.5);
+  var bHaX=-f.facing*21, bHaY=-37+(moving?Math.sin(ph+Math.PI)*4:Math.sin(now*2.2)*2);
+  seg(bShX,bShY, bElX,bElY, scaleDark, 9);
+  seg(bElX,bElY, bHaX,bHaY, scaleDark, 8);
+  clawHand(bHaX,bHaY);
+
+  /* ---- torso: bulky scaled body + segmented belly ---- */
+  var tg=ctx.createLinearGradient(-16,0,16,0);
+  tg.addColorStop(0,scaleDark); tg.addColorStop(0.3,scaleCol); tg.addColorStop(0.75,scaleCol); tg.addColorStop(1,scaleDark);
+  ctx.fillStyle=tg;
+  ctx.beginPath();
+  ctx.moveTo(-16,-70);
+  ctx.quadraticCurveTo(0,-74,16,-70);
+  ctx.quadraticCurveTo(19,-48,14,-33);
+  ctx.quadraticCurveTo(0,-29,-14,-33);
+  ctx.quadraticCurveTo(-19,-48,-16,-70);
+  ctx.closePath(); ctx.fill();
+  /* belly plates */
+  ctx.fillStyle=bellyCol;
+  ctx.beginPath(); ctx.ellipse(f.facing*4,-51,10.5,17,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle="rgba(110,60,20,.55)"; ctx.lineWidth=1.6;
+  [-62,-54,-46,-38].forEach(function(by){
+    ctx.beginPath(); ctx.moveTo(f.facing*4-8.5,by); ctx.quadraticCurveTo(f.facing*4,by+2.6,f.facing*4+8.5,by); ctx.stroke();
+  });
+  /* back spikes down the spine */
+  ctx.fillStyle=hornCol;
+  [[-15,-72,8],[-17,-60,9],[-17,-47,8],[-15,-35,7]].forEach(function(sp){
+    ctx.beginPath();
+    ctx.moveTo(f.facing*sp[0], sp[1]-sp[2]*0.4);
+    ctx.lineTo(f.facing*(sp[0]+9), sp[1]+1);
+    ctx.lineTo(f.facing*sp[0], sp[1]+sp[2]*0.5);
+    ctx.closePath(); ctx.fill();
+  });
+
+  /* ---- front arm: raises while casting ---- */
+  var fShX=f.facing*13, fShY=-63;
+  var fElX=f.facing*(20+castK*5), fElY=-51-castK*9;
+  var fHaX=f.facing*(23+castK*9), fHaY=-39-castK*17;
+  if(f.dead){ fElX=f.facing*22; fElY=-46; fHaX=f.facing*27; fHaY=-33; }
+  seg(fShX,fShY, fElX,fElY, scaleCol, 9);
+  seg(fElX,fElY, fHaX,fHaY, scaleCol, 8);
+  clawHand(fHaX,fHaY);
+
+  /* ---- neck + head: horns, snout, fangs, glowing eye ---- */
+  seg(f.facing*7,-66, f.facing*12,-80, scaleCol, 15);
+  ctx.save();
+  ctx.translate(f.facing*14,-86);
+  ctx.scale(f.facing,1); /* local +x = forward */
+  ctx.rotate(castK*0.10 + (f.dead?0.15:0));
+  /* ear fin */
+  ctx.fillStyle=wingCol;
+  ctx.beginPath(); ctx.moveTo(-9,-4); ctx.lineTo(-18,-9); ctx.lineTo(-13,2); ctx.lineTo(-17,7); ctx.lineTo(-8,5); ctx.closePath(); ctx.fill();
+  /* skull */
+  ctx.fillStyle=scaleCol;
+  ctx.beginPath(); ctx.ellipse(0,-1,14.5,11.5,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=scaleDark;
+  ctx.beginPath(); ctx.ellipse(-2,4,12,7,0,0,Math.PI); ctx.fill();
+  /* horns: two curved pairs */
+  ctx.strokeStyle=hornCol; ctx.lineCap="round";
+  ctx.lineWidth=4.6;
+  ctx.beginPath(); ctx.moveTo(-6,-10); ctx.quadraticCurveTo(-14,-17,-20,-15); ctx.stroke();
+  ctx.lineWidth=3.4;
+  ctx.beginPath(); ctx.moveTo(-2,-11.5); ctx.quadraticCurveTo(-8,-19,-14,-19); ctx.stroke();
+  /* head spikes */
+  ctx.fillStyle=hornCol;
+  ctx.beginPath(); ctx.moveTo(3,-11); ctx.lineTo(6,-16); ctx.lineTo(8,-10); ctx.closePath(); ctx.fill();
+  /* snout */
+  ctx.fillStyle=scaleCol;
+  ctx.beginPath();
+  ctx.moveTo(5,-7); ctx.quadraticCurveTo(20,-8,25,-3); ctx.quadraticCurveTo(26,1,22,3);
+  ctx.lineTo(8,5); ctx.quadraticCurveTo(4,0,5,-7); ctx.closePath(); ctx.fill();
+  /* upper fangs */
+  ctx.fillStyle="#fff6e0";
+  [[13,3.4],[19,3],[23.5,1.6]].forEach(function(fn){
+    ctx.beginPath(); ctx.moveTo(fn[0]-1.8,fn[1]); ctx.lineTo(fn[0]+1.8,fn[1]); ctx.lineTo(fn[0],fn[1]+5.4); ctx.closePath(); ctx.fill();
+  });
+  /* lower jaw: opens with castK */
+  ctx.save();
+  ctx.translate(2,4.5);
+  ctx.rotate(castK*0.5 + (f.dead?0.35:0.04));
+  ctx.fillStyle=scaleDark;
+  ctx.beginPath();
+  ctx.moveTo(0,-1.5); ctx.lineTo(21,-0.5); ctx.quadraticCurveTo(24,1.5,20,3.6);
+  ctx.lineTo(2,3.4); ctx.quadraticCurveTo(-1,1,0,-1.5); ctx.closePath(); ctx.fill();
+  /* lower fangs pointing up */
+  ctx.fillStyle="#fff6e0";
+  [[10,-0.6],[16,-0.7]].forEach(function(fn){
+    ctx.beginPath(); ctx.moveTo(fn[0]-1.5,fn[1]); ctx.lineTo(fn[0]+1.5,fn[1]); ctx.lineTo(fn[0],fn[1]-4.2); ctx.closePath(); ctx.fill();
+  });
+  /* tongue / inner-mouth fire glow while casting */
+  if(castK>0.05){
+    ctx.fillStyle="rgba(255,"+Math.round(120+80*castK)+",30,"+(0.35+0.55*castK)+")";
+    ctx.beginPath(); ctx.ellipse(11,0.6,8.5,2.4+1.6*castK,0,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+  /* nostril glow at the snout tip while casting */
+  if(castK>0.05){
+    var ng=ctx.createRadialGradient(23,-3,0.5, 23,-3,7+6*castK);
+    ng.addColorStop(0,"rgba(255,220,130,.95)");
+    ng.addColorStop(1,"rgba(255,90,20,0)");
+    ctx.fillStyle=ng;
+    ctx.beginPath(); ctx.arc(23,-3,7+6*castK,0,Math.PI*2); ctx.fill();
+  }
+  /* brow ridge + glowing slit eye */
+  ctx.fillStyle=scaleDark;
+  ctx.beginPath(); ctx.moveTo(0,-6.5); ctx.quadraticCurveTo(6,-8.5,11,-5.5); ctx.lineTo(10,-3.4); ctx.quadraticCurveTo(5,-5.4,1,-4); ctx.closePath(); ctx.fill();
+  ctx.save();
+  ctx.shadowColor="#ff9a2a"; ctx.shadowBlur=8;
+  ctx.fillStyle="#ffb03a";
+  ctx.beginPath(); ctx.ellipse(5.5,-1.8,3.5,2.7,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  ctx.fillStyle="#2a0800";
+  ctx.fillRect(4.9,-4.3,1.3,5); /* vertical slit pupil */
+  ctx.restore();
+
+  ctx.restore();
+}
 function drawFighter(f){
+  if(f.isBoss){ drawBossCreature(f); return; }
   var cx=f.x+FIGHTER_W/2, feet=f.y+FIGHTER_H;
   var now = performance.now()*0.001;
   var isP1 = f.isP1;
@@ -1294,6 +1633,7 @@ function loop(ts){
   /* hit checks: my attack vs foe (visual/local), foe attack vs me (authoritative for my HP) */
   checkHit(me, foe, false);
   checkHit(foe, me, true);
+  if(isBossBattle) updateProjectiles();
 
   /* stamina bars move every frame (regen), and the attack button dims when a swing is unaffordable */
   refreshHUD();
@@ -1308,6 +1648,7 @@ function loop(ts){
   });
   drawFighter(me.isP1?me:foe);
   drawFighter(me.isP1?foe:me);
+  drawProjectiles();
 
   /* network state send ~20Hz */
   if(mode==="online" && connOpen){
@@ -1424,7 +1765,7 @@ function onDisconnected(reason){
   cancelRandomMatch();
   cleanupPeer();
   disconnectBtn.textContent="切断する";
-  mode="idle"; role=null; fighting=false; isBossBattle=false;
+  mode="idle"; role=null; fighting=false; isBossBattle=false; projectiles.length=0;
   refreshNames();
   setLobbyEnabled(true);
   codeBox.classList.remove("show");
@@ -1790,24 +2131,24 @@ bossBtn.addEventListener("click", function(){
   cleanupPeer();
   mode="solo"; role=null; isBossBattle=true;
   me = makeFighter(210,"#17a398","#0b5a54",true);
-  foe = makeFighter(690,"#a31621","#4a0810",false,{isBoss:true, maxHp:BOSS_HP, maxStam:120, dmg:BOSS_DMG, range:BOSS_RANGE, scale:1.42, speedMul:0.92, stamRegen:0.55});
+  foe = makeFighter(690,"#b3392e","#5c130c",false,{isBoss:true, maxHp:BOSS_HP, maxStam:120, dmg:BOSS_DMG, range:BOSS_RANGE, scale:1.42, speedMul:0.95, stamRegen:0.6});
   refreshNames();
-  setStatus("on","ボス戦（黒騎士）","HP300・大型・リーチ長め。HPが減ると加速＆激怒するよ");
+  setStatus("on","ボス戦（鬼ドラゴン）","HP300・大型。剣は持たず、口から火の玉を撃ってくる。HPが減ると炎が激しくなるよ");
   setLobbyEnabled(false);
   disconnectBtn.style.display="";
   disconnectBtn.textContent="ボス戦をやめる";
   resetPositions();
   /* boss starts a bit closer so its larger body doesn't clip the edge */
   foe.x=660;
-  showBanner("⚔ 黒騎士が現れた！","HP300のボス戦。斬られても吹き飛びにくい相手だよ", false);
+  showBanner("🔥 鬼ドラゴンが現れた！","HP300のボス戦。火の玉を避けながら斬り込もう。火の玉は剣で斬って消せるよ", false);
   setTimeout(function(){ if(mode==="solo" && isBossBattle && !roundOver) startCountdown(); }, 1100);
-  log("ボス戦開始：黒騎士 HP"+BOSS_HP);
+  log("ボス戦開始：鬼ドラゴン HP"+BOSS_HP);
 });
 var _origDisconnect = disconnectBtn.onclick;
 disconnectBtn.addEventListener("click", function(){
   if(mode==="solo"){
     stopBGM();
-    mode="idle"; fighting=false; isBossBattle=false;
+    mode="idle"; fighting=false; isBossBattle=false; projectiles.length=0;
     me = makeFighter(210,"#17a398","#0b5a54",true);
     foe = makeFighter(714,"#f2a93b","#9a6206",false);
     refreshHUD();
