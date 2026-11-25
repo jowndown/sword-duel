@@ -81,6 +81,15 @@
         width:26px; height:26px; border-radius:8px; color:#fff; font-size:13px; font-weight:800; flex:none;
       }
       .chip.host{ background:var(--teal); } .chip.guest{ background:var(--amber); } .chip.solo{ background:#5b6470; }
+      .chip.rand{ background:#bc4632; }
+      .card.wide{ grid-column:1 / -1; }
+      .mm-row{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+      .mm-row .mm-text{ flex:1 1 260px; min-width:0; }
+      .mm-row .mm-text h2{ margin:0 0 6px; }
+      .mm-row .mm-text p{ margin:0; }
+      .mm-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+      .mm-info{ font-size:12.5px; font-weight:700; color:var(--ink-soft); min-height:1.4em; }
+      .mm-info.searching{ color:var(--amber); }
       .btn{
         border:none; border-radius:10px; padding:10px 16px;
         font-size:15px; font-weight:800; color:#fff; background:var(--teal);
@@ -88,6 +97,7 @@
       }
       .btn:hover{ filter:brightness(1.07); } .btn:active{ transform:scale(.98); }
       .btn.amber{ background:var(--amber); }
+      .btn.rand{ background:#bc4632; font-size:16px; padding:12px 22px; }
       .btn.ghost{ background:var(--panel-2); color:var(--ink); border:1.5px solid var(--line); }
       .btn:disabled{ opacity:.45; cursor:not-allowed; transform:none; }
       .codebox{
@@ -158,21 +168,69 @@
       }
       .count-num.show{ display:flex; }
 
-      /* ---------- touch controls ---------- */
+      /* ---------- touch controls : virtual stick (Crystal-Forest style) ---------- */
       .touch{
-        display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin-top:12px;
+        display:flex; justify-content:space-between; align-items:center; gap:16px; margin-top:12px;
+        background:var(--panel); border:1px solid var(--line); border-radius:16px;
+        padding:14px 16px; box-shadow:var(--shadow);
       }
-      .tcluster{ display:flex; gap:10px; }
+      /* --- movement stick (left thumb) --- */
+      .stick-zone{ display:flex; align-items:center; gap:14px; min-width:0; }
+      .stick-base{
+        position:relative; width:132px; height:132px; flex:none; border-radius:50%;
+        background:radial-gradient(circle at 50% 42%, var(--panel-2) 0 46%, var(--panel) 78%);
+        border:1.5px solid var(--line);
+        box-shadow:inset 0 2px 10px rgba(35,32,27,.10), var(--shadow);
+        touch-action:none; user-select:none; -webkit-user-select:none; cursor:grab;
+      }
+      .stick-base.active{ cursor:grabbing; border-color:var(--teal-bright); }
+      .stick-base::before{
+        content:""; position:absolute; inset:17px; border-radius:50%;
+        border:1.5px dashed var(--line); pointer-events:none;
+      }
+      .stick-arrow{
+        position:absolute; font-size:11px; line-height:1; color:var(--ink-soft);
+        pointer-events:none; font-weight:800; z-index:1;
+      }
+      .stick-arrow.up{ top:7px; left:50%; transform:translateX(-50%); color:var(--teal); }
+      .stick-arrow.down{ bottom:7px; left:50%; transform:translateX(-50%); }
+      .stick-arrow.left{ left:8px; top:50%; transform:translateY(-50%); }
+      .stick-arrow.right{ right:8px; top:50%; transform:translateY(-50%); }
+      .stick-base.jump-ready .stick-arrow.up{ color:var(--teal-bright); transform:translateX(-50%) scale(1.35); }
+      .stick-knob{
+        position:absolute; left:50%; top:50%; width:58px; height:58px; margin:-29px 0 0 -29px;
+        border-radius:50%; z-index:2; pointer-events:none;
+        background:radial-gradient(circle at 38% 32%, #ffffff 0%, var(--panel-2) 55%, #e9e2d4 100%);
+        border:1.5px solid var(--line);
+        box-shadow:0 6px 14px rgba(35,32,27,.22), inset 0 -3px 6px rgba(35,32,27,.10);
+        display:flex; align-items:center; justify-content:center;
+        color:var(--teal); font-size:17px; font-weight:800; letter-spacing:.02em;
+        will-change:transform;
+      }
+      @media (prefers-color-scheme: dark){
+        .stick-knob{ background:radial-gradient(circle at 38% 32%, #3a404c 0%, #262b34 60%, #1d2129 100%); }
+      }
+      .stick-base.active .stick-knob{ border-color:var(--teal-bright); }
+      .stick-label{ font-size:13px; font-weight:800; line-height:1.5; }
+      .stick-label span{ display:block; font-size:12px; font-weight:500; color:var(--ink-soft); line-height:1.6; }
+      .stick-label b{ color:var(--teal); }
+      /* --- action buttons (right thumb) --- */
+      .tcluster{ display:flex; gap:12px; align-items:flex-end; flex:none; }
       .tbtn{
         width:64px; height:64px; border-radius:50%; border:1.5px solid var(--line);
         background:var(--panel); color:var(--ink); font-size:22px; font-weight:800;
         box-shadow:var(--shadow); user-select:none; -webkit-user-select:none; touch-action:none;
-        display:flex; align-items:center; justify-content:center;
+        display:flex; align-items:center; justify-content:center; text-align:center; line-height:1.25;
       }
       .tbtn:active, .tbtn.held{ background:var(--panel-2); transform:scale(.95); }
-      .tbtn.atk{ width:76px; height:76px; background:var(--amber); border-color:var(--amber); color:#fff; font-size:16px; }
-      .tbtn.jump{ background:var(--teal); border-color:var(--teal); color:#fff; font-size:14px; }
-      @media (min-width:900px){ .touch{ opacity:.85; } }
+      .tbtn.atk{ width:80px; height:80px; background:var(--amber); border-color:var(--amber); color:#fff; font-size:15px; }
+      @media (max-width:560px){
+        .touch{ padding:12px; gap:10px; }
+        .stick-base{ width:118px; height:118px; }
+        .stick-knob{ width:52px; height:52px; margin:-26px 0 0 -26px; font-size:15px; }
+        .stick-label{ display:none; }
+        .tbtn.atk{ width:72px; height:72px; }
+      }
 
       .help{
         margin-top:14px; background:var(--panel); border:1px solid var(--line); border-radius:14px;
@@ -208,6 +266,20 @@
       </div>
 
       <div class="lobby" id="lobby">
+        <section class="card wide">
+          <div class="mm-row">
+            <div class="mm-text">
+              <h2><span class="chip rand">乱</span>ランダムマッチング</h2>
+              <p>コードのやり取りなしで、今まさに相手を探している人とそのまま対戦。誰も探していなければ、あなたが待機役になって相手が来るのを待つよ。</p>
+            </div>
+            <div class="mm-actions">
+              <button class="btn rand" id="mmBtn">ランダムマッチング</button>
+              <button class="btn ghost" id="mmCancelBtn" style="display:none">探すのをやめる</button>
+            </div>
+          </div>
+          <span class="mm-info" id="mmInfo"></span>
+        </section>
+
         <section class="card">
           <h2><span class="chip host">1</span>部屋を作る（ホスト）</h2>
           <p>部屋コードが発行されるよ。そのコードを対戦相手に伝えて、相手が「参加する」を押せば接続完了。</p>
@@ -264,23 +336,31 @@
       </div>
 
       <div class="touch">
-        <div class="tcluster">
-          <button class="tbtn" id="btnLeft" aria-label="左へ移動">◀</button>
-          <button class="tbtn" id="btnRight" aria-label="右へ移動">▶</button>
+        <div class="stick-zone">
+          <div class="stick-base" id="stickBase" role="application" aria-label="移動スティック：左右に倒して移動、上に倒してジャンプ">
+            <span class="stick-arrow up">▲</span>
+            <span class="stick-arrow down">▼</span>
+            <span class="stick-arrow left">◀</span>
+            <span class="stick-arrow right">▶</span>
+            <div class="stick-knob" id="stickKnob">移動</div>
+          </div>
+          <div class="stick-label">移動スティック
+            <span>左右に倒す：移動（倒すほど速い）<br><b>上に倒す：ジャンプ</b>／ 下はその場で止まる</span>
+          </div>
         </div>
         <div class="tcluster">
-          <button class="tbtn jump" id="btnJump">ジャンプ</button>
           <button class="tbtn atk" id="btnAtk">剣で斬る</button>
         </div>
       </div>
 
       <div class="help">
         <h3>遊び方・操作</h3>
-        <div>移動： <kbd>←</kbd><kbd>→</kbd> または <kbd>A</kbd><kbd>D</kbd> ／ 画面の ◀ ▶ ボタン</div>
-        <div>ジャンプ： <kbd>↑</kbd> / <kbd>W</kbd> / <kbd>Space</kbd> ／ ジャンプボタン</div>
+        <div>移動： <kbd>←</kbd><kbd>→</kbd> または <kbd>A</kbd><kbd>D</kbd> ／ 移動スティックを左右に倒す（倒し加減で速さが変わる）</div>
+        <div>ジャンプ： <kbd>↑</kbd> / <kbd>W</kbd> / <kbd>Space</kbd> ／ 移動スティックを上に倒す（上フリックでもOK。ジャンプボタンはないよ）</div>
         <div>攻撃： <kbd>J</kbd> / <kbd>F</kbd> ／ 「剣で斬る」ボタン（剣の届く距離で当たる）</div>
         <div>勝敗： 相手のHPを0にした方の勝ち。1発 = 20ダメージ（5発で決着）</div>
         <div>被弾： 斬られると仰け反って大きく吹き飛び、その間は動けず反撃もできない。立て直すまで短い無敵時間があるから、斬り合いにならず一度距離が開くよ</div>
+        <div>ランダムマッチング： 「ランダムマッチング」ボタンを押すと、今探している相手と自動でつながる。誰も探していなければ自分が待機役になり、次に探しに来た人と対戦になるよ。相手が見つかるまで画面を開いたまま待ってね。</div>
         <div>接続の仕組み： PeerJS（WebRTC）でブラウザ同士が直接通信するから、アカウント登録や自前のサーバーは不要（接続の仲介には PeerJS の無料サーバーを使うよ）。ラグは回線次第。</div>
         <div>注意： 相手の姿は約0.05秒ごとに送られてくる位置で補間表示している。動きがカクつくときは回線の影響が大きい。</div>
       </div>
@@ -296,6 +376,7 @@
 var $ = function(id){ return document.getElementById(id); };
 var statusDot=$("statusDot"), statusText=$("statusText"), statusSub=$("statusSub");
 var hostBtn=$("hostBtn"), joinBtn=$("joinBtn"), soloBtn=$("soloBtn"), joinInput=$("joinInput");
+var mmBtn=$("mmBtn"), mmCancelBtn=$("mmCancelBtn"), mmInfo=$("mmInfo");
 var codeBox=$("codeBox"), roomCodeEl=$("roomCode"), copyBtn=$("copyBtn");
 var disconnectBtn=$("disconnectBtn"), pingBox=$("pingBox"), pingVal=$("pingVal");
 var banner=$("banner"), bannerTitle=$("bannerTitle"), bannerText=$("bannerText"), rematchBtn=$("rematchBtn");
@@ -511,8 +592,17 @@ function stepFighter(f, input){
   f.moving=false;
   var stunned = f.stunT>0; /* reeling: no walking back in, no counter-attack */
   if(input && fighting && !roundOver && !stunned){
-    if(input.left){ f.x-=speed; f.facing=-1; f.moving=true; }
-    if(input.right){ f.x+=speed; f.facing=1; f.moving=true; }
+    /* analog move: stick tilt (-1..1) wins; buttons/keys fall back to full tilt */
+    var mx = (typeof input.moveX==="number") ? input.moveX
+           : ((input.right?1:0) - (input.left?1:0));
+    if(Math.abs(mx)>0.16){
+      f.x += mx*speed;
+      f.facing = mx>0 ? 1 : -1;
+      f.moving = true;
+      f.moveAmt = Math.min(1, Math.abs(mx));
+    } else {
+      f.moveAmt = 0;
+    }
     if(input.jump && f.onGround){ f.vy=-13.5; f.onGround=false; sfx("jump"); }
   }
   f.x+=f.vx; f.vx*= stunned ? 0.86 : 0.78; /* reeling body slides further before friction bites */
@@ -521,7 +611,7 @@ function stepFighter(f, input){
   if(f.y>=GROUND-FIGHTER_H){ f.y=GROUND-FIGHTER_H; f.vy=0; f.onGround=true; }
   if(f.x<8) f.x=8;
   if(f.x>W-FIGHTER_W-8) f.x=W-FIGHTER_W-8;
-  if(f.moving && f.onGround) f.walkPhase+=0.32; else if(f.onGround) f.walkPhase*=0.8;
+  if(f.moving && f.onGround) f.walkPhase+=0.32*(0.45+0.55*(f.moveAmt||1)); else if(f.onGround) f.walkPhase*=0.8;
   if(f.atkT>=0){ f.atkT++; if(f.atkT>22) f.atkT=-1; }
   if(f.hurtT>0) f.hurtT--;
   if(f.stunT>0) f.stunT--;
@@ -834,8 +924,10 @@ var lastFrame=0;
 function loop(ts){
   requestAnimationFrame(loop);
   var dt = ts-lastFrame; lastFrame=ts;
-  /* local player */
-  var input={ left:!!(keys.ArrowLeft||keys.KeyA||touch.left), right:!!(keys.ArrowRight||keys.KeyD||touch.right), jump:false };
+  /* local player: keyboard gives full tilt, the stick gives analog tilt */
+  var keyX = ((keys.ArrowRight||keys.KeyD)?1:0) - ((keys.ArrowLeft||keys.KeyA)?1:0);
+  var input={ left:keyX<0, right:keyX>0, jump:false,
+              moveX: keyX!==0 ? keyX : touch.stickX };
   stepFighter(me, input);
   if(touch.jumpQueued){ touch.jumpQueued=false; if(me.onGround&&fighting&&!roundOver&&me.stunT<=0){ me.vy=-13.5; me.onGround=false; sfx("jump"); } }
 
@@ -881,7 +973,7 @@ function loop(ts){
 }
 
 /* ================= Input ================= */
-var touch={left:false,right:false,jumpQueued:false};
+var touch={stickX:0, jumpQueued:false};
 document.addEventListener("keydown", function(e){
   if(e.target && (e.target.tagName==="INPUT")) return;
   keys[e.code]=true;
@@ -903,10 +995,58 @@ function bindHold(id, on, off){
   el.addEventListener("pointercancel", end);
   el.addEventListener("contextmenu", function(e){ e.preventDefault(); });
 }
-bindHold("btnLeft",  function(){ touch.left=true; },  function(){ touch.left=false; });
-bindHold("btnRight", function(){ touch.right=true; }, function(){ touch.right=false; });
-bindHold("btnJump",  function(){ touch.jumpQueued=true; });
 bindHold("btnAtk",   function(){ tryAttack(me,true); });
+
+/* ---- virtual movement stick: tilt L/R to move, tilt UP (or flick up) to jump ---- */
+(function(){
+  var base=$("stickBase"), knob=$("stickKnob");
+  if(!base || !knob) return;
+  var R=40;               /* knob travel radius in px */
+  var pointerId=null;
+  var jumpArmed=true;     /* one jump per upward push; re-arms when stick comes back down */
+  function setKnob(dx, dy){
+    knob.style.transform="translate("+dx+"px,"+dy+"px)";
+  }
+  function update(e){
+    var r=base.getBoundingClientRect();
+    var cx=r.left+r.width/2, cy=r.top+r.height/2;
+    var dx=e.clientX-cx, dy=e.clientY-cy;
+    var len=Math.sqrt(dx*dx+dy*dy);
+    if(len>R){ dx=dx/len*R; dy=dy/len*R; }
+    setKnob(dx,dy);
+    var nx=dx/R, ny=dy/R;
+    touch.stickX = Math.abs(nx)<0.16 ? 0 : nx;   /* dead zone */
+    base.classList.toggle("jump-ready", ny<-0.35);
+    /* jump: push the stick up past the threshold (a quick flick up crosses it too) */
+    if(ny<-0.6 && jumpArmed){
+      jumpArmed=false;
+      touch.jumpQueued=true;
+    }
+    if(ny>-0.3) jumpArmed=true;
+  }
+  function release(){
+    pointerId=null;
+    touch.stickX=0;
+    jumpArmed=true;
+    base.classList.remove("active","jump-ready");
+    setKnob(0,0);
+  }
+  base.addEventListener("pointerdown", function(e){
+    e.preventDefault();
+    pointerId=e.pointerId;
+    try{ base.setPointerCapture(pointerId); }catch(err){}
+    base.classList.add("active");
+    update(e);
+  });
+  base.addEventListener("pointermove", function(e){
+    if(pointerId===null || e.pointerId!==pointerId) return;
+    e.preventDefault();
+    update(e);
+  });
+  base.addEventListener("pointerup", function(e){ if(e.pointerId===pointerId) release(); });
+  base.addEventListener("pointercancel", function(e){ if(e.pointerId===pointerId) release(); });
+  base.addEventListener("contextmenu", function(e){ e.preventDefault(); });
+})();
 
 /* ================= PeerJS networking ================= */
 var PREFIX="muse-pjduel-";
@@ -922,7 +1062,7 @@ function genCode(){
   return s;
 }
 function setLobbyEnabled(on){
-  hostBtn.disabled=!on; joinBtn.disabled=!on; soloBtn.disabled=!on; joinInput.disabled=!on;
+  hostBtn.disabled=!on; joinBtn.disabled=!on; soloBtn.disabled=!on; joinInput.disabled=!on; mmBtn.disabled=!on;
 }
 function cleanupPeer(){
   if(pingTimer){ clearInterval(pingTimer); pingTimer=null; }
@@ -933,6 +1073,7 @@ function cleanupPeer(){
   disconnectBtn.style.display="none";
 }
 function onDisconnected(reason){
+  cancelRandomMatch();
   cleanupPeer();
   disconnectBtn.textContent="切断する";
   mode="idle"; role=null; fighting=false;
@@ -962,6 +1103,7 @@ function onData(d){
   switch(d.k){
     case "hello":
       if(role==="host"){
+        finishRandomMatch();
         log("ゲストが入室。対戦開始");
         setStatus("on","接続完了！ 対戦中","ゲストが入室したよ");
         sendData({k:"start"});
@@ -970,6 +1112,7 @@ function onData(d){
       }
       break;
     case "start":
+      finishRandomMatch();
       log("ホストから開始合図");
       setStatus("on","接続完了！ 対戦中","ホストとつながったよ");
       resetPositions();
@@ -1014,10 +1157,10 @@ function startPing(){
   pingTimer=setInterval(function(){ if(connOpen) sendData({k:"ping", t:Date.now()}); }, 2000);
 }
 
-hostBtn.addEventListener("click", function(){
+function createRoom(code, isRandom){
   if(typeof Peer==="undefined"){ setStatus("err","PeerJSを読み込めなかった","ネット接続を確認して再読み込みしてね"); log("PeerJS CDNの読み込みに失敗"); return; }
   cleanupPeer();
-  myCode=genCode();
+  myCode=code;
   setLobbyEnabled(false);
   setStatus("wait","部屋を作成中…","PeerJSサーバーに接続しているよ");
   log("ホストとして部屋作成を開始（コード: "+myCode+"）");
@@ -1030,14 +1173,20 @@ hostBtn.addEventListener("click", function(){
     foe = makeFighter(714,"#f2a93b","#9a6206",false); foe.isP1=false; foe.remote=true;
     refreshNames(); refreshHUD();
     roomCodeEl.textContent=myCode;
-    codeBox.classList.add("show");
     disconnectBtn.style.display="";
-    setStatus("wait","相手の参加を待っています","部屋コード「"+myCode+"」を相手に伝えてね");
-    showBanner("部屋コードは「"+myCode+"」","相手がこのコードで参加すると対戦が始まるよ", false);
+    if(isRandom){
+      setStatus("wait","ランダムマッチング：相手を探しています","相手が見つかるまでこの画面のまま待ってね");
+      showBanner("ランダムマッチング中","いま相手を探している人とつながるのを待っています…", false);
+    } else {
+      codeBox.classList.add("show");
+      setStatus("wait","相手の参加を待っています","部屋コード「"+myCode+"」を相手に伝えてね");
+      showBanner("部屋コードは「"+myCode+"」","相手がこのコードで参加すると対戦が始まるよ", false);
+    }
     log("部屋ができた。Peer ID: "+id);
   });
   peer.on("connection", function(c){
     if(conn){ log("すでに接続中なので追加の接続は無視"); return; }
+    if(mmActive) log("ランダムマッチングで相手が来た");
     wireConnection(c);
     startPing();
   });
@@ -1046,21 +1195,22 @@ hostBtn.addEventListener("click", function(){
     if(err.type==="unavailable-id"){
       setStatus("err","そのコードは使用中だった","もう一度「部屋を作る」を押してね");
       cleanupPeer(); setLobbyEnabled(true);
+      if(mmActive){ cancelRandomMatch(); mmSetInfo("部屋を作れなかったのでマッチングを終了しました", false); }
     } else if(mode!=="online" || !connOpen){
       setStatus("err","接続エラー（"+err.type+"）","時間をおいて試してね");
       cleanupPeer(); setLobbyEnabled(true);
+      if(mmActive){ cancelRandomMatch(); mmSetInfo("接続エラーでマッチングを終了しました", false); }
     }
   });
   peer.on("disconnected", function(){ log("シグナリングから切断（再接続を試行）"); try{ peer.reconnect(); }catch(e){} });
-});
+}
+hostBtn.addEventListener("click", function(){ createRoom(genCode(), false); });
 
-joinBtn.addEventListener("click", function(){
-  var code=(joinInput.value||"").trim().toUpperCase();
-  if(code.length!==4){ setStatus("err","コードは4文字だよ","ホストから聞いたコードを入れてね"); joinInput.focus(); return; }
+function joinRoom(code, isRandom){
   if(typeof Peer==="undefined"){ setStatus("err","PeerJSを読み込めなかった","ネット接続を確認して再読み込みしてね"); return; }
   cleanupPeer();
   setLobbyEnabled(false);
-  setStatus("wait","部屋「"+code+"」に接続中…","ホストを探しているよ");
+  setStatus("wait", isRandom ? "ランダムマッチング：相手の部屋に入っています" : "部屋「"+code+"」に接続中…","ホストを探しているよ");
   log("ゲストとして部屋 "+code+" へ接続開始");
   try{ peer=new Peer({debug:0}); }catch(e){ setStatus("err","初期化に失敗","再読み込みして試してね"); setLobbyEnabled(true); return; }
 
@@ -1085,10 +1235,173 @@ joinBtn.addEventListener("click", function(){
   peer.on("error", function(err){
     log("Peerエラー: "+err.type);
     if(err.type==="peer-unavailable"){
+      if(mmActive){ cancelRandomMatch(); }
       setStatus("err","部屋が見つからなかった","コードが合っているか確認してね");
       cleanupPeer(); setLobbyEnabled(true); mode="idle"; role=null; refreshNames();
     }
   });
+}
+joinBtn.addEventListener("click", function(){
+  var code=(joinInput.value||"").trim().toUpperCase();
+  if(code.length!==4){ setStatus("err","コードは4文字だよ","ホストから聞いたコードを入れてね"); joinInput.focus(); return; }
+  joinRoom(code, false);
+});
+
+/* ================= Random matchmaking =================
+   Shared waiting lobby on the PeerJS broker: one well-known lobby ID can be
+   claimed by only one peer at a time. Whoever claims it becomes the waiter:
+   they open a normal room and hand its code to the next searcher through the
+   lobby connection. A searcher who finds the lobby already claimed connects
+   to it, receives the code, frees the lobby for the next pair, and joins the
+   room with the normal guest flow. Searchers who arrive while a match is
+   being handed off simply retry until they claim the lobby or get a code. */
+var MM_LOBBY_ID = PREFIX+"mm-lobby";
+var mmActive=false, mmPeer=null, mmConn=null, mmGotCode=false;
+var mmRetryTimer=null, mmTickTimer=null, mmStartedAt=0, mmPhase="";
+
+function mmSetInfo(txt, searching){
+  mmInfo.textContent=txt||"";
+  mmInfo.classList.toggle("searching", !!searching);
+}
+function mmDestroyPeer(){
+  if(mmConn){ try{ mmConn.close(); }catch(e){} mmConn=null; }
+  if(mmPeer){ try{ mmPeer.destroy(); }catch(e){} mmPeer=null; }
+}
+function mmStopTimers(){
+  if(mmRetryTimer){ clearTimeout(mmRetryTimer); mmRetryTimer=null; }
+  if(mmTickTimer){ clearInterval(mmTickTimer); mmTickTimer=null; }
+}
+function finishRandomMatch(){
+  if(!mmActive) return;
+  mmActive=false;
+  mmStopTimers();
+  mmDestroyPeer();
+  mmCancelBtn.style.display="none";
+  mmSetInfo("ランダムマッチングで相手が見つかりました！", false);
+  log("ランダムマッチング成立");
+}
+function cancelRandomMatch(){
+  if(!mmActive && !mmPeer) return;
+  mmActive=false;
+  mmStopTimers();
+  mmDestroyPeer();
+  mmCancelBtn.style.display="none";
+}
+function mmScheduleRetry(delay){
+  if(!mmActive) return;
+  mmDestroyPeer();
+  if(mmRetryTimer) clearTimeout(mmRetryTimer);
+  mmRetryTimer=setTimeout(function(){ if(mmActive) mmTryClaim(); }, delay||1300);
+}
+function mmStartTick(){
+  if(mmTickTimer) clearInterval(mmTickTimer);
+  mmTickTimer=setInterval(function(){
+    if(!mmActive){ mmStopTimers(); return; }
+    var sec=Math.floor((Date.now()-mmStartedAt)/1000);
+    var dots=["",".","..","..."][Math.floor(Date.now()/450)%4];
+    mmSetInfo((mmPhase==="wait" ? "待機中：相手が来るのを待っています" : "相手を探しています")+dots+"（"+sec+"秒）", true);
+  }, 300);
+}
+function mmTryClaim(){
+  if(!mmActive) return;
+  mmPhase="claim";
+  mmDestroyPeer();
+  var claimed=false;
+  try{ mmPeer=new Peer(MM_LOBBY_ID, {debug:0}); }
+  catch(e){ mmScheduleRetry(1500); return; }
+  mmPeer.on("open", function(){
+    if(!mmActive) return;
+    claimed=true;
+    mmPhase="wait";
+    /* We hold the lobby: open our real room and hand its code to the next searcher. */
+    createRoom(genCode(), true);
+    log("ランダムマッチング：待機役になった（部屋 "+myCode+"）");
+  });
+  mmPeer.on("connection", function(c){
+    if(!mmActive || mmGotCode) { try{ c.close(); }catch(e){} return; }
+    mmGotCode=true;
+    mmConn=c;
+    c.on("open", function(){
+      try{ c.send({k:"mm-room", code:myCode}); }catch(e){}
+      log("ランダムマッチング：探しに来た相手へ部屋コードを渡した");
+      /* free the lobby for the next pair shortly after the handoff */
+      setTimeout(function(){ if(mmPeer){ mmDestroyPeer(); } }, 900);
+    });
+    c.on("error", function(){});
+  });
+  mmPeer.on("error", function(err){
+    if(!mmActive) return;
+    if(err.type==="unavailable-id" && !claimed){
+      /* Someone else is waiting: go ask them for their room code. */
+      mmJoinLobby();
+    } else if(err.type==="network" || err.type==="server-error" || err.type==="socket-error" || err.type==="socket-closed"){
+      mmScheduleRetry(1800);
+    }
+  });
+}
+function mmJoinLobby(){
+  if(!mmActive) return;
+  mmPhase="join";
+  mmDestroyPeer();
+  var settled=false;
+  try{ mmPeer=new Peer({debug:0}); }
+  catch(e){ mmScheduleRetry(1500); return; }
+  mmPeer.on("open", function(){
+    if(!mmActive) return;
+    var c=mmPeer.connect(MM_LOBBY_ID, {reliable:true});
+    mmConn=c;
+    c.on("open", function(){ log("ランダムマッチング：待機中の相手に接続"); });
+    c.on("data", function(d){
+      if(!mmActive || settled || !d || d.k!=="mm-room" || !d.code) return;
+      settled=true; mmGotCode=true;
+      var code=String(d.code).toUpperCase();
+      log("ランダムマッチング：部屋コード "+code+" を受け取った");
+      mmActive=false; mmStopTimers(); mmDestroyPeer();
+      mmCancelBtn.style.display="none";
+      mmSetInfo("相手が見つかりました！ 接続しています…", false);
+      joinRoom(code, true);
+    });
+    c.on("close", function(){ if(mmActive && !settled) mmScheduleRetry(1100); });
+    c.on("error", function(){ if(mmActive && !settled) mmScheduleRetry(1100); });
+    /* handoff stalled: start over (maybe the waiter left) */
+    setTimeout(function(){ if(mmActive && !settled) mmScheduleRetry(600); }, 5000);
+  });
+  mmPeer.on("error", function(err){
+    if(!mmActive || settled) return;
+    if(err.type==="peer-unavailable"){
+      /* The waiter vanished between our claim attempt and now: retry the cycle. */
+      mmScheduleRetry(1000);
+    }
+  });
+}
+mmBtn.addEventListener("click", function(){
+  if(typeof Peer==="undefined"){ setStatus("err","PeerJSを読み込めなかった","ネット接続を確認して再読み込みしてね"); return; }
+  if(mmActive || mode==="online" || mode==="solo") return;
+  mmActive=true; mmGotCode=false; mmStartedAt=Date.now();
+  setLobbyEnabled(false);
+  mmBtn.disabled=true;
+  mmCancelBtn.style.display="";
+  setStatus("wait","ランダムマッチング：相手を探しています","見つかるまでこの画面のまま待ってね");
+  showBanner("ランダムマッチング中","いま相手を探している人とつながるのを待っています…", false);
+  mmSetInfo("相手を探しています", true);
+  mmStartTick();
+  log("ランダムマッチング開始");
+  mmTryClaim();
+});
+mmCancelBtn.addEventListener("click", function(){
+  cancelRandomMatch();
+  cleanupPeer();
+  mode="idle"; role=null; fighting=false;
+  me = makeFighter(210,"#17a398","#0b5a54",true);
+  foe = makeFighter(714,"#f2a93b","#9a6206",false);
+  refreshNames(); refreshHUD();
+  codeBox.classList.remove("show");
+  disconnectBtn.style.display="none";
+  setLobbyEnabled(true);
+  setStatus("","未接続","部屋を作るか、コードを入れて参加してね");
+  showBanner("対戦相手を待っています","部屋を作るか、コードで参加してね", false);
+  mmSetInfo("", false);
+  log("ランダムマッチングをキャンセル");
 });
 
 copyBtn.addEventListener("click", function(){
