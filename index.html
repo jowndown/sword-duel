@@ -255,12 +255,26 @@
       }
       .tbtn:active, .tbtn.held{ background:var(--panel-2); transform:scale(.95); }
       .tbtn.atk{ width:80px; height:80px; background:var(--amber); border-color:var(--amber); color:#fff; font-size:15px; }
+      .tbtn.guard{
+        width:72px; height:72px; background:var(--teal); border-color:var(--teal); color:#fff; font-size:14px;
+        flex-direction:column; gap:1px; line-height:1.15;
+      }
+      .tbtn.guard .shield-ico{ font-size:24px; line-height:1; }
+      .tbtn.guard.held, .tbtn.guard.guarding{ background:var(--teal-bright); border-color:var(--teal-bright); transform:scale(.95); box-shadow:0 0 0 4px rgba(23,163,152,.28), var(--shadow); }
+      .stambar.guardflash{ animation:guardflash .3s ease; }
+      @keyframes guardflash{
+        0%,100%{ box-shadow:none; }
+        35%{ box-shadow:0 0 0 3px rgba(23,163,152,.8); }
+        65%{ box-shadow:0 0 0 1px rgba(23,163,152,.45); }
+      }
       @media (max-width:560px){
         .touch{ padding:12px; gap:10px; }
         .stick-base{ width:118px; height:118px; }
         .stick-knob{ width:52px; height:52px; margin:-26px 0 0 -26px; font-size:15px; }
         .stick-label{ display:none; }
         .tbtn.atk{ width:72px; height:72px; }
+        .tbtn.guard{ width:64px; height:64px; font-size:12.5px; }
+        .tbtn.guard .shield-ico{ font-size:20px; }
       }
 
       .help{
@@ -339,7 +353,7 @@
           <p>相手がいなくても操作感を試せるCPU練習と、1人専用のボス戦。ボスは人ではなく、口から炎の火の玉を撃ってくる鬼ドラゴン。HP100で、HPが減ると段階的に速く凶暴になるよ。</p>
           <button class="btn ghost" id="soloBtn">CPUと練習する</button>
           <button class="btn boss" id="bossBtn">🔥 ボスと戦う（鬼ドラゴン）</button>
-          <span class="note">ボスは斬られても吹き飛びにくいよ。火の玉はジャンプで避けるか、剣で斬って消せる。近づくと炎ブレスや尻尾薙ぎ払いで反撃し、画面端に追い込むと翼で頭上を飛び越えて位置を取り直すよ。オンライン対戦中は押せないよ。</span>
+          <span class="note">ボスは斬られても吹き飛びにくいよ。火の玉はジャンプで避けるか、剣で斬って消せるし、盾ガード（スタミナ25消費）でも受け止められる。近づくと炎ブレスや尻尾薙ぎ払いで反撃し、画面端に追い込むと翼で頭上を飛び越えて位置を取り直すよ。オンライン対戦中は押せないよ。</span>
         </section>
       </div>
 
@@ -383,10 +397,11 @@
             <div class="stick-knob" id="stickKnob">移動</div>
           </div>
           <div class="stick-label">移動スティック
-            <span>左右に倒す：移動（倒すほど速い）<br><b>上に倒す：ジャンプ</b>／ 下はその場で止まる</span>
+            <span>左右に倒す：移動（倒すほど速い）<br><b>上に倒す：ジャンプ</b>／ <b>下に倒す：ガード</b></span>
           </div>
         </div>
         <div class="tcluster">
+          <button class="tbtn guard" id="btnGuard" aria-label="盾ガード（長押し）"><span class="shield-ico" aria-hidden="true">🛡</span><span>ガード</span></button>
           <button class="tbtn atk" id="btnAtk">剣で斬る</button>
         </div>
       </div>
@@ -396,6 +411,8 @@
         <div>移動： <kbd>←</kbd><kbd>→</kbd> または <kbd>A</kbd><kbd>D</kbd> ／ 移動スティックを左右に倒す（倒し加減で速さが変わる）</div>
         <div>ジャンプ： <kbd>↑</kbd> / <kbd>W</kbd> / <kbd>Space</kbd> ／ 移動スティックを上に倒す（上フリックでもOK。ジャンプボタンはないよ）</div>
         <div>攻撃： <kbd>J</kbd> / <kbd>F</kbd> ／ 「剣で斬る」ボタン（剣の届く距離で当たる）</div>
+        <div>ガード： <kbd>K</kbd> / <kbd>S</kbd> / <kbd>↓</kbd> を長押し ／ 「ガード」ボタンを長押し ／ スティックを下に倒す。ガード中は動けず、斬れず、ジャンプもできない</div>
+        <div>ガード成功： 攻撃を受け止めると<b>HPは減らない</b>代わりにスタミナを消費するよ（剣・ボスの近接＝20、火の玉＝25）。スタミナが足りない状態で受けると盾が割れて（ガードブレイク）ダメージを受けてしまう。ガード中はスタミナが回復しないから、必要な時だけ構えよう。ボスの火の玉・炎ブレス・尻尾薙ぎ払いもガードできるよ</div>
         <div>勝敗： 相手のHPを0にした方の勝ち。1発 = 20ダメージ（5発で決着）</div>
         <div>スタミナ： 剣を振るたびにスタミナを30消費するよ。足りないと剣は振れない。振っていない間は少し間をおいて自動で回復するから、連打せず間合いを取りながら戦おう。CPUも同じルール</div>
         <div>ボス戦： 「ボスと戦う」から1人で挑めるよ。鬼ドラゴンはHP100・体が約1.4倍で、剣は持たず口から火の玉を撃ってくる（1発25ダメージ＝4発で決着）。斬っても吹き飛びにくい。火の玉はジャンプで避けるか、タイミングよく剣で斬ると消せるよ。近づきすぎると至近距離の炎ブレス（正面）や尻尾薙ぎ払い（背後）で反撃してくる（どちらも20ダメージ）。画面端に追い込んでも、翼ホップで頭上を飛び越えて間合いを取り直すから、端に固めて一方的に斬ることはできないよ。HPが62%以下で火の玉が速く・多くなり、30%以下で激怒して3連の火の玉を吐いてくるよ</div>
@@ -451,7 +468,7 @@ var countNum=$("countNum"), logEl=$("log");
 var hp1El=$("hp1"), hp2El=$("hp2"), hpNum1=$("hpNum1"), hpNum2=$("hpNum2"), hpMax1=$("hpMax1"), hpMax2=$("hpMax2");
 var bossBtn=$("bossBtn");
 var stam1El=$("stam1"), stam2El=$("stam2"), stamNum1=$("stamNum1"), stamNum2=$("stamNum2");
-var stamWrap1=$("stamWrap1"), stamWrap2=$("stamWrap2"), atkBtn=$("btnAtk");
+var stamWrap1=$("stamWrap1"), stamWrap2=$("stamWrap2"), atkBtn=$("btnAtk"), guardBtn=$("btnGuard");
 var p1Name=$("p1Name"), p2Name=$("p2Name"), p1Tag=$("p1Tag"), p2Tag=$("p2Tag"), vsLabel=$("vsLabel");
 var canvas=$("game"), ctx=canvas.getContext("2d");
 
@@ -481,6 +498,11 @@ var MAXSTAM=100, ATK_COST=30, STAM_REGEN=0.5, STAM_DELAY=36;
    sword 20 = 5 hits, fireball 25 = 4 hits, boss melee 20 = 5 hits. */
 var BOSS_HP=100, BOSS_STAM=100, BOSS_DMG=25, BOSS_RANGE=118;
 var BOSS_MELEE_DMG=20, BOSS_MELEE_COST=20, BOSS_MELEE_RANGE=118;
+/* Guard: holding the shield blocks an attack completely (no HP damage) but
+   costs stamina per blocked hit — the cost mirrors the damage it negates
+   inside the HP100 rule (sword / boss melee 20, fireball 25). Blocking with
+   less stamina than the cost breaks the guard and the hit lands normally. */
+var GUARD_COST=20, GUARD_COST_FIREBALL=25;
 
 /* ================= Fighters ================= */
 function makeFighter(x, color, dark, isP1, opts){
@@ -491,6 +513,7 @@ function makeFighter(x, color, dark, isP1, opts){
     x:x, y:GROUND-FIGHTER_H, vx:0, vy:0, facing:isP1?1:-1,
     hp:maxHp, maxHp:maxHp, stam:maxStam, maxStam:maxStam, stamDelay:0, onGround:true, walkPhase:0, moving:false,
     atkT:-1, atkHitDone:false, castT:-1, meleeT:-1, meleeKind:"", meleeHitDone:false, leapT:0, hurtT:0, stunT:0, invulnT:0, dead:false,
+    guarding:false, guardFlashT:0,
     color:color, dark:dark, isP1:isP1,
     isBoss:!!opts.isBoss, scale:opts.scale||1, dmg:opts.dmg||DMG, range:opts.range||RANGE,
     speedMul:opts.speedMul||1, stamRegen:opts.stamRegen||STAM_REGEN,
@@ -504,7 +527,7 @@ var foe  = makeFighter(714, "#f2a93b", "#9a6206", false);
 var mode="idle", role=null;
 var fighting=false, roundOver=false;
 var keys={};
-var cpuTimer=0, cpuDir=0, cpuAtkCd=0;
+var cpuTimer=0, cpuDir=0, cpuAtkCd=0, cpuGuardT=0;
 var isBossBattle=false, bossTimer=0, bossDir=0, bossAtkCd=0, bossDashCd=0, bossPhase=1, bossPhaseAnnounced=1, bossDoubleCd=0;
 var bossMeleeCd=0, bossLeapCd=0, bossCornerT=0;
 var projectiles=[]; /* boss fireballs in flight (boss fights are solo-only, simulated locally) */
@@ -583,6 +606,15 @@ function sfx(name){
     case "hit": /* blade connects: metallic thud + body */
       tone({t:t, f:175, f2:52, type:"square", dur:0.16, vol:0.30});
       noiseHit({t:t, dur:0.10, vol:0.24, fFrom:950, fTo:180, q:0.8});
+      break;
+    case "guard": /* shield clang: bright metallic ring, no body thud */
+      tone({t:t, f:1250, f2:900, type:"square", dur:0.10, vol:0.16});
+      tone({t:t, f:2100, f2:1500, type:"triangle", dur:0.16, vol:0.14});
+      noiseHit({t:t, dur:0.07, vol:0.16, fFrom:3400, fTo:1800, q:2});
+      break;
+    case "guardbreak": /* shield cracks: harsh snap + falling ring */
+      tone({t:t, f:900, f2:180, type:"sawtooth", dur:0.24, vol:0.22});
+      noiseHit({t:t, dur:0.18, vol:0.24, fFrom:2600, fTo:300, q:1});
       break;
     case "jump":
       tone({t:t, f:300, f2:660, type:"square", dur:0.14, vol:0.10});
@@ -741,7 +773,7 @@ function resetPositions(){
   left.x=210; left.y=GROUND-FIGHTER_H; left.facing=1;
   right.x=714; right.y=GROUND-FIGHTER_H; right.facing=-1;
   [me,foe].forEach(function(f){
-    f.vx=0; f.vy=0; f.hp=f.maxHp; f.stam=f.maxStam; f.stamDelay=0; f.atkT=-1; f.castT=-1; f.meleeT=-1; f.leapT=0; f.hurtT=0; f.stunT=0; f.invulnT=0; f.dead=false;
+    f.vx=0; f.vy=0; f.hp=f.maxHp; f.stam=f.maxStam; f.stamDelay=0; f.atkT=-1; f.castT=-1; f.meleeT=-1; f.leapT=0; f.hurtT=0; f.stunT=0; f.invulnT=0; f.dead=false; f.guarding=false; f.guardFlashT=0;
     f.tx=f.x; f.ty=f.y; f.tfacing=f.facing;
   });
   projectiles.length=0;
@@ -814,6 +846,7 @@ function staminaDenied(){
 function tryAttack(f, isLocal){
   if(!fighting || roundOver || f.dead) return;
   if(f.stunT>0) return; /* still reeling from a hit */
+  if(f.guarding) return; /* shield up: can't swing */
   if(f.atkT>=0) return;
   if(f.stam<ATK_COST){ if(isLocal) staminaDenied(); return; } /* out of stamina: no swing */
   f.stam-=ATK_COST; f.stamDelay=STAM_DELAY;
@@ -829,6 +862,47 @@ function facingToward(att, def){
   var ac=att.x+FIGHTER_W/2, dc=def.x+FIGHTER_W/2;
   return (att.facing===1 && dc>=ac-6) || (att.facing===-1 && dc<=ac+6);
 }
+/* Guard check, shared by sword hits, boss melee and fireballs.
+   Returns true when the defender's shield eats the attack: no HP damage,
+   stamina pays `cost` instead, and the defender is only nudged back a
+   little (no hitstun, no invincibility window — the shield IS the defence).
+   Returns false when not guarding. When guarding with too little stamina
+   the shield breaks: stamina empties, the guard drops, and the caller lets
+   the hit land normally. */
+function guardFlash(def){
+  var wrap = def.isP1 ? stamWrap1 : stamWrap2; /* HUD left is always P1's side */
+  if(wrap){ wrap.classList.remove("guardflash"); void wrap.offsetWidth; wrap.classList.add("guardflash"); }
+}
+function tryGuardBlock(def, att, cost){
+  if(!def.guarding || def.dead) return false;
+  var dir = (def.x+FIGHTER_W/2) >= (att.x+FIGHTER_W/2) ? 1 : -1;
+  if(def.stam >= cost){
+    def.stam -= cost; def.stamDelay = STAM_DELAY;
+    def.guardFlashT = 12;
+    def.vx = dir*5.5; /* braced: pushed a step, but keeps footing */
+    if(def.onGround) def.vy = 0;
+    /* sound only where the block is authoritative; the remote copy hears it
+       via the "guardblk" message, so it doesn't clang twice */
+    if(def===me || mode!=="online") sfx("guard");
+    guardFlash(def);
+    refreshHUD();
+    if(mode==="online"){
+      if(def===me) sendData({k:"guardblk", st:Math.round(def.stam)});
+      /* foe's block is also resolved on the foe's own client; the periodic
+         state sync carries the stamina drop either way */
+    }
+    return true;
+  }
+  /* guard break */
+  def.stam = 0; def.stamDelay = STAM_DELAY;
+  def.guarding = false; def.guardFlashT = 12;
+  if(def===me || mode!=="online") sfx("guardbreak");
+  guardFlash(def);
+  refreshHUD();
+  if(mode==="online" && def===me) sendData({k:"guardblk", st:0, brk:1});
+  log("ガードブレイク！ スタミナ切れで盾が割れた");
+  return false;
+}
 /* attacker hits defender check, evaluated on the DEFENDER's client for online fairness */
 function checkHit(att, def, defIsLocal){
   if(att.atkT<0 || att.atkHitDone) return;
@@ -838,6 +912,7 @@ function checkHit(att, def, defIsLocal){
   if(Math.abs(att.y-def.y) > (att.isBoss?96:74)) return;
   if(!facingToward(att,def)) return;
   att.atkHitDone=true;
+  if(tryGuardBlock(def, att, GUARD_COST)) return; /* shield ate it: no HP damage */
   applyDamage(def, att);
   if(defIsLocal && mode==="online") sendData({k:"hp", hp:def.hp});
 }
@@ -868,11 +943,16 @@ function applyDamage(def, att){
 
 /* ================= Physics / update ================= */
 function stepFighter(f, input){
-  if(f.dead){ f.atkT=-1; return; }
+  if(f.dead){ f.atkT=-1; f.guarding=false; return; }
   var speed=4.4*(f.speedMul||1);
   f.moving=false;
   var stunned = f.stunT>0; /* reeling: no walking back in, no counter-attack */
-  if(input && fighting && !roundOver && !stunned){
+  /* Shield guard: held input, grounded, not mid-swing and not reeling.
+     While guarding the fighter is rooted — no walking, jumping or swinging —
+     and stamina does not refill (see the regen rule below). */
+  f.guarding = !!(input && input.guard && fighting && !roundOver && !stunned && f.onGround && f.atkT<0);
+  if(f.guarding) f.moveAmt=0;
+  if(input && fighting && !roundOver && !stunned && !f.guarding){
     /* analog move: stick tilt (-1..1) wins; buttons/keys fall back to full tilt */
     var mx = (typeof input.moveX==="number") ? input.moveX
            : ((input.right?1:0) - (input.left?1:0));
@@ -900,18 +980,26 @@ function stepFighter(f, input){
   if(f.hurtT>0) f.hurtT--;
   if(f.stunT>0) f.stunT--;
   if(f.invulnT>0) f.invulnT--;
-  /* stamina: hold while the post-swing delay runs down, then refill gradually */
+  if(f.guardFlashT>0) f.guardFlashT--;
+  /* stamina: hold while the post-swing delay runs down, then refill gradually.
+     No refill while the shield is up — guarding is a stance, not a rest. */
   if(f.stamDelay>0) f.stamDelay--;
-  else if(f.stam<f.maxStam) f.stam=Math.min(f.maxStam, f.stam+(f.stamRegen||STAM_REGEN));
+  else if(!f.guarding && f.stam<f.maxStam) f.stam=Math.min(f.maxStam, f.stam+(f.stamRegen||STAM_REGEN));
 }
 function cpuThink(){
   if(!fighting || roundOver || foe.dead) return;
-  cpuTimer--; cpuAtkCd--;
+  cpuTimer--; cpuAtkCd--; cpuGuardT--;
   var c=foe.x+FIGHTER_W/2, m=me.x+FIGHTER_W/2;
-  var input={left:false,right:false,jump:false};
+  var input={left:false,right:false,jump:false,guard:false};
+  /* The CPU guards too: when the player's swing starts in range it sometimes
+     raises its shield (same stamina cost on a block as the player pays). */
+  if(cpuGuardT<=0 && me.atkT>=0 && me.atkT<=4 && Math.abs(c-m)<RANGE+34 && foe.stam>=GUARD_COST && Math.random()<0.38){
+    cpuGuardT=15+Math.random()*10;
+  }
+  if(cpuGuardT>0) input.guard=true;
   if(cpuTimer<=0){ cpuTimer=18+Math.random()*22; cpuDir = Math.abs(c-m)>70 ? (m>c?1:-1) : (Math.random()<0.4?(Math.random()<0.5?-1:1):0); }
   if(cpuDir<0) input.left=true; if(cpuDir>0) input.right=true;
-  if(Math.abs(c-m)<RANGE-14 && cpuAtkCd<=0 && foe.stam>=ATK_COST && Math.random()<0.5){ tryAttack(foe,false); cpuAtkCd=34+Math.random()*26; }
+  if(!input.guard && Math.abs(c-m)<RANGE-14 && cpuAtkCd<=0 && foe.stam>=ATK_COST && Math.random()<0.5){ tryAttack(foe,false); cpuAtkCd=34+Math.random()*26; }
   if(Math.random()<0.006 && foe.onGround) input.jump=true;
   stepFighter(foe, input);
   if(foe.atkT===2) sfx("swing");
@@ -974,6 +1062,7 @@ function updateBossMelee(){
   if(Math.abs(c-m) > BOSS_MELEE_RANGE+16) return;
   if(Math.abs(foe.y-me.y) > 84) return; /* a jump can still dodge it */
   foe.meleeHitDone=true;
+  if(tryGuardBlock(me, foe, GUARD_COST)) return; /* shield eats the breath / tail sweep */
   var keepDmg=foe.dmg, keepVx=foe.vx;
   foe.dmg=BOSS_MELEE_DMG;
   applyDamage(me, foe); /* full knockback: the counter shoves the player back out */
@@ -1055,11 +1144,15 @@ function updateProjectiles(){
       var px=me.x+FIGHTER_W/2, py=me.y+FIGHTER_H*0.5;
       var ddx=p.x-px, ddy=p.y-py;
       if(ddx*ddx+ddy*ddy < (p.r+24)*(p.r+24)){
-        var keepVx=foe.vx;
-        applyDamage(me, foe);
-        foe.vx=keepVx; /* the dragon is not pushed back by its own fireball */
-        sfx("firehit");
-        gone=true;
+        if(tryGuardBlock(me, foe, GUARD_COST_FIREBALL)){
+          gone=true; /* shield snuffs the fireball out: no HP damage, stamina pays */
+        } else {
+          var keepVx=foe.vx;
+          applyDamage(me, foe);
+          foe.vx=keepVx; /* the dragon is not pushed back by its own fireball */
+          sfx("firehit");
+          gone=true;
+        }
       }
     }
     if(gone) projectiles.splice(i,1);
@@ -1683,6 +1776,48 @@ function drawFighter(f){
   ctx.restore();
   ctx.restore();
 
+  /* raised guard shield: while guarding, the shield comes around to the
+     front and covers the torso; it flashes on a successful block */
+  if(f.guarding && !f.dead){
+    ctx.save();
+    ctx.translate(f.facing*19, -50);
+    ctx.rotate(f.facing*0.06);
+    var gFlash = f.guardFlashT>0 ? f.guardFlashT/12 : 0;
+    if(gFlash>0){
+      ctx.save();
+      ctx.globalAlpha=0.55*gFlash;
+      ctx.strokeStyle="#bffbff"; ctx.lineWidth=3.5;
+      ctx.beginPath(); ctx.arc(0,0,27+4*(1-gFlash),0,Math.PI*2); ctx.stroke();
+      ctx.restore();
+    }
+    /* heater-shield body */
+    ctx.fillStyle=darkCol;
+    ctx.beginPath();
+    ctx.moveTo(-17,-20); ctx.lineTo(17,-20);
+    ctx.quadraticCurveTo(18,-2, 12,10);
+    ctx.quadraticCurveTo(6,19, 0,23);
+    ctx.quadraticCurveTo(-6,19, -12,10);
+    ctx.quadraticCurveTo(-18,-2, -17,-20);
+    ctx.closePath(); ctx.fill();
+    var sg=ctx.createLinearGradient(-16,0,16,0);
+    sg.addColorStop(0,armorMid); sg.addColorStop(0.5,armorLight); sg.addColorStop(1,armorMid);
+    ctx.fillStyle=sg;
+    ctx.beginPath();
+    ctx.moveTo(-14,-17); ctx.lineTo(14,-17);
+    ctx.quadraticCurveTo(15,-3, 10,8);
+    ctx.quadraticCurveTo(5,15.5, 0,19);
+    ctx.quadraticCurveTo(-5,15.5, -10,8);
+    ctx.quadraticCurveTo(-15,-3, -14,-17);
+    ctx.closePath(); ctx.fill();
+    /* cross emblem + boss rivet */
+    ctx.fillStyle=primary;
+    ctx.fillRect(-2.6,-15,5.2,26);
+    ctx.fillRect(-10,-6,20,5.2);
+    ctx.fillStyle="#e8b93c"; ctx.beginPath(); ctx.arc(0,-3.4,3.4,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle="#fff2a8"; ctx.beginPath(); ctx.arc(-1,-4.4,1.2,0,Math.PI*2); ctx.fill();
+    if(gFlash>0){ ctx.fillStyle="rgba(255,255,255,"+(0.5*gFlash)+")"; ctx.beginPath(); ctx.arc(0,0,17,0,Math.PI*2); ctx.fill(); }
+    ctx.restore();
+  }
   ctx.restore();
 
   /* sword arc effect */
@@ -1729,9 +1864,10 @@ function loop(ts){
   /* local player: keyboard gives full tilt, the stick gives analog tilt */
   var keyX = ((keys.ArrowRight||keys.KeyD)?1:0) - ((keys.ArrowLeft||keys.KeyA)?1:0);
   var input={ left:keyX<0, right:keyX>0, jump:false,
-              moveX: keyX!==0 ? keyX : touch.stickX };
+              moveX: keyX!==0 ? keyX : touch.stickX,
+              guard: !!(keys.KeyK || keys.KeyS || keys.ArrowDown || touch.guardHeld || touch.stickGuard) };
   stepFighter(me, input);
-  if(touch.jumpQueued){ touch.jumpQueued=false; if(me.onGround&&fighting&&!roundOver&&me.stunT<=0){ me.vy=-13.5; me.onGround=false; sfx("jump"); } }
+  if(touch.jumpQueued){ touch.jumpQueued=false; if(me.onGround&&fighting&&!roundOver&&me.stunT<=0&&!me.guarding){ me.vy=-13.5; me.onGround=false; sfx("jump"); } }
 
   if(mode==="solo"){ if(isBossBattle) bossThink(); else cpuThink(); }
   else if(mode==="online"){
@@ -1744,11 +1880,13 @@ function loop(ts){
     if(foe.hurtT>0) foe.hurtT--;
     if(foe.stunT>0) foe.stunT--;
     if(foe.invulnT>0) foe.invulnT--;
+    if(foe.guardFlashT>0) foe.guardFlashT--;
     if(foe.moving && foe.onGround) foe.walkPhase+=0.32;
     foe.moving = Math.abs(foe.tx-foe.x)>1.2;
-    /* remote stamina regen mirrors the local rule; the owner's "s" sync corrects drift */
+    /* remote stamina regen mirrors the local rule (no refill while guarding);
+       the owner's "s" sync corrects drift */
     if(foe.stamDelay>0) foe.stamDelay--;
-    else if(foe.stam<MAXSTAM) foe.stam=Math.min(MAXSTAM, foe.stam+STAM_REGEN);
+    else if(!foe.guarding && foe.stam<MAXSTAM) foe.stam=Math.min(MAXSTAM, foe.stam+STAM_REGEN);
   } else {
     stepFighter(foe, null);
   }
@@ -1761,6 +1899,7 @@ function loop(ts){
   /* stamina bars move every frame (regen), and the attack button dims when a swing is unaffordable */
   refreshHUD();
   atkBtn.classList.toggle("tired", fighting && !roundOver && me.stam<ATK_COST);
+  if(guardBtn) guardBtn.classList.toggle("guarding", !!me.guarding);
 
   /* draw */
   drawStage();
@@ -1779,19 +1918,19 @@ function loop(ts){
     sendAcc+=dt;
     if(sendAcc>=50){
       sendAcc=0;
-      sendData({k:"s", x:Math.round(me.x*10)/10, y:Math.round(me.y*10)/10, f:me.facing, hp:me.hp, st:Math.round(me.stam), mv:me.moving?1:0});
+      sendData({k:"s", x:Math.round(me.x*10)/10, y:Math.round(me.y*10)/10, f:me.facing, hp:me.hp, st:Math.round(me.stam), mv:me.moving?1:0, g:me.guarding?1:0});
     }
   }
 }
 
 /* ================= Input ================= */
-var touch={stickX:0, jumpQueued:false};
+var touch={stickX:0, jumpQueued:false, guardHeld:false, stickGuard:false};
 document.addEventListener("keydown", function(e){
   if(e.target && (e.target.tagName==="INPUT")) return;
   keys[e.code]=true;
-  if(["ArrowLeft","ArrowRight","ArrowUp","Space"].indexOf(e.code)>=0) e.preventDefault();
+  if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Space"].indexOf(e.code)>=0) e.preventDefault();
   if(e.code==="ArrowUp"||e.code==="KeyW"||e.code==="Space"){
-    if(me.onGround&&fighting&&!roundOver&&me.stunT<=0){ me.vy=-13.5; me.onGround=false; sfx("jump"); }
+    if(me.onGround&&fighting&&!roundOver&&me.stunT<=0&&!me.guarding){ me.vy=-13.5; me.onGround=false; sfx("jump"); }
   }
   if(e.code==="KeyJ"||e.code==="KeyF"){ tryAttack(me,true); }
 });
@@ -1808,6 +1947,7 @@ function bindHold(id, on, off){
   el.addEventListener("contextmenu", function(e){ e.preventDefault(); });
 }
 bindHold("btnAtk",   function(){ tryAttack(me,true); });
+bindHold("btnGuard", function(){ touch.guardHeld=true; }, function(){ touch.guardHeld=false; });
 
 /* ---- virtual movement stick: tilt L/R to move, tilt UP (or flick up) to jump ---- */
 (function(){
@@ -1828,6 +1968,7 @@ bindHold("btnAtk",   function(){ tryAttack(me,true); });
     setKnob(dx,dy);
     var nx=dx/R, ny=dy/R;
     touch.stickX = Math.abs(nx)<0.16 ? 0 : nx;   /* dead zone */
+    touch.stickGuard = ny>0.55;   /* push the stick DOWN to raise the shield */
     base.classList.toggle("jump-ready", ny<-0.35);
     /* jump: push the stick up past the threshold (a quick flick up crosses it too) */
     if(ny<-0.6 && jumpArmed){
@@ -1839,6 +1980,7 @@ bindHold("btnAtk",   function(){ tryAttack(me,true); });
   function release(){
     pointerId=null;
     touch.stickX=0;
+    touch.stickGuard=false;
     jumpArmed=true;
     base.classList.remove("active","jump-ready");
     setKnob(0,0);
@@ -1936,6 +2078,7 @@ function onData(d){
     case "s":
       if(typeof d.hp==="number" && d.hp<foe.hp){ foe.hurtT=16; foe.stunT=20; foe.invulnT=42; } /* foe took a hit on their side: show the reel here too */
       foe.tx=d.x; foe.ty=d.y; foe.tfacing=d.f; foe.hp=d.hp;
+      foe.guarding = !!d.g; /* owner's shield state, so blocks render on both screens */
       if(typeof d.st==="number") foe.stam=d.st; /* owner's stamina is authoritative */
       if(d.hp<=0 && !roundOver && fighting){ endRound(true); }
       refreshHUD();
@@ -1945,6 +2088,12 @@ function onData(d){
       break;
     case "hp":
       foe.hp=d.hp; refreshHUD();
+      break;
+    case "guardblk": /* foe's shield ate my attack (or broke) on their client */
+      if(typeof d.st==="number") foe.stam=d.st;
+      foe.guardFlashT=12;
+      sfx(d.brk ? "guardbreak" : "guard");
+      refreshHUD();
       break;
     case "end":
       if(!roundOver){
