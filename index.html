@@ -2,7 +2,7 @@
 <html lang="ja">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="data:," />
     <title>PeerJS 2人対戦テスト</title>
@@ -38,16 +38,21 @@
           --shadow:0 10px 28px rgba(0,0,0,.35);
         }
       }
-      *{ box-sizing:border-box; }
+      *{ box-sizing:border-box; touch-action:manipulation; }
       html,body{ margin:0; padding:0; }
+      html{ -webkit-text-size-adjust:100%; }
       body{
         background:var(--bg);
         color:var(--ink);
         font-family:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Hiragino Sans",system-ui,sans-serif;
         -webkit-text-size-adjust:100%;
+        overscroll-behavior-y:none;
       }
       button, input{ font-family:inherit; }
-      button{ min-height:44px; cursor:pointer; }
+      button{ min-height:44px; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+      /* gameplay surfaces: no browser gestures at all, so rapid taps can
+         never turn into double-tap / pinch zoom or a scroll */
+      .stage, .stage-wrap, .touch, .stick-base, .tbtn, canvas{ touch-action:none; }
       .wrap{ max-width:1020px; margin:0 auto; padding:14px 14px 28px; }
 
       /* ---------- status strip ---------- */
@@ -376,6 +381,32 @@
 <script>
 (function(){
 "use strict";
+
+/* ================= No accidental zoom on rapid taps =================
+   Rapid tapping (attack button, stick, canvas) used to trigger the
+   browser's double-tap / pinch zoom. The viewport lock + touch-action
+   CSS handles modern browsers; these handlers cover iOS Safari, which
+   ignores user-scalable=no and only partially supports touch-action.
+   Attacks fire on pointerdown, so blocking the default on a fast second
+   touchend never eats an attack — it only eats the zoom. */
+document.addEventListener("gesturestart", function(e){ e.preventDefault(); }, {passive:false});
+document.addEventListener("gesturechange", function(e){ e.preventDefault(); }, {passive:false});
+document.addEventListener("gestureend", function(e){ e.preventDefault(); }, {passive:false});
+document.addEventListener("dblclick", function(e){ e.preventDefault(); }, {passive:false});
+var lastTouchEnd=0;
+document.addEventListener("touchend", function(e){
+  var now=Date.now();
+  if(now-lastTouchEnd<=350){
+    var t=e.target;
+    var isForm = t && (t.tagName==="INPUT" || t.tagName==="TEXTAREA" || t.tagName==="SELECT");
+    if(!isForm) e.preventDefault();
+  }
+  lastTouchEnd=now;
+}, {passive:false});
+/* pinch on non-game areas: two-finger touchmove is never a page gesture here */
+document.addEventListener("touchmove", function(e){
+  if(e.touches && e.touches.length>1) e.preventDefault();
+}, {passive:false});
 
 /* ================= DOM ================= */
 var $ = function(id){ return document.getElementById(id); };
