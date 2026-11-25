@@ -91,6 +91,9 @@
       }
       .chip.host{ background:var(--teal); } .chip.guest{ background:var(--amber); } .chip.solo{ background:#5b6470; }
       .chip.rand{ background:#bc4632; }
+      .btn.boss{ background:#7a1220; font-size:16px; padding:12px 16px; }
+      .btn.boss:hover{ filter:brightness(1.15); }
+      .tag.boss{ background:#7a1220; letter-spacing:.06em; }
       .card.wide{ grid-column:1 / -1; }
       .mm-row{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
       .mm-row .mm-text{ flex:1 1 260px; min-width:0; }
@@ -332,10 +335,11 @@
         </section>
 
         <section class="card">
-          <h2><span class="chip solo">3</span>1人で練習</h2>
-          <p>相手がいなくても操作感を試せる、CPUとの練習モード。オンライン接続前の動作チェックにも。</p>
+          <h2><span class="chip solo">3</span>1人で練習 ＆ ボス戦</h2>
+          <p>相手がいなくても操作感を試せるCPU練習と、1人専用のボス戦。ボスは体が大きくHP300・リーチ長めで、HPが減ると段階的に速く凶暴になるよ。</p>
           <button class="btn ghost" id="soloBtn">CPUと練習する</button>
-          <span class="note">オンライン対戦中は押せないよ。切断すればまた押せる。</span>
+          <button class="btn boss" id="bossBtn">⚔ ボスと戦う（黒騎士）</button>
+          <span class="note">ボスは斬られても吹き飛びにくいよ。スタミナ管理と間合いが大事。オンライン対戦中は押せないよ。</span>
         </section>
       </div>
 
@@ -344,7 +348,7 @@
           <div class="fighter-hud">
             <div class="fname"><span id="p1Name">プレイヤー1</span><span class="tag me" id="p1Tag" style="display:none">あなた</span></div>
             <div class="hpbar"><div class="hpfill p1" id="hp1"></div></div>
-            <div class="hpnum">HP <span id="hpNum1">100</span> / 100</div>
+            <div class="hpnum">HP <span id="hpNum1">100</span> / <span id="hpMax1">100</span></div>
             <div class="stambar" id="stamWrap1"><div class="stamfill" id="stam1"></div></div>
             <div class="stamnum">スタミナ <span id="stamNum1">100</span></div>
           </div>
@@ -352,7 +356,7 @@
           <div class="fighter-hud right">
             <div class="fname"><span id="p2Name">プレイヤー2</span><span class="tag rival" id="p2Tag" style="display:none">相手</span></div>
             <div class="hpbar"><div class="hpfill p2" id="hp2"></div></div>
-            <div class="hpnum">HP <span id="hpNum2">100</span> / 100</div>
+            <div class="hpnum">HP <span id="hpNum2">100</span> / <span id="hpMax2">100</span></div>
             <div class="stambar" id="stamWrap2"><div class="stamfill" id="stam2"></div></div>
             <div class="stamnum">スタミナ <span id="stamNum2">100</span></div>
           </div>
@@ -394,6 +398,7 @@
         <div>攻撃： <kbd>J</kbd> / <kbd>F</kbd> ／ 「剣で斬る」ボタン（剣の届く距離で当たる）</div>
         <div>勝敗： 相手のHPを0にした方の勝ち。1発 = 20ダメージ（5発で決着）</div>
         <div>スタミナ： 剣を振るたびにスタミナを30消費するよ。足りないと剣は振れない。振っていない間は少し間をおいて自動で回復するから、連打せず間合いを取りながら戦おう。CPUも同じルール</div>
+        <div>ボス戦： 「ボスと戦う」から1人で挑めるよ。黒騎士はHP300・体が約1.4倍・剣のリーチが長く1発25ダメージ。斬っても吹き飛びにくい。HPが62%以下で加速、30%以下で激怒してダッシュ斬りや連続斬りを使ってくるよ</div>
         <div>音： 対戦中はBGMが流れ、剣の音やヒット音などの効果音も鳴るよ。上の「BGM オン／オフ」「効果音 オン／オフ」ボタンで別々に止められる</div>
         <div>被弾： 斬られると仰け反って大きく吹き飛び、その間は動けず反撃もできない。立て直すまで短い無敵時間があるから、斬り合いにならず一度距離が開くよ</div>
         <div>ランダムマッチング： 「ランダムマッチング」ボタンを押すと、今探している相手と自動でつながる。誰も探していなければ自分が待機役になり、次に探しに来た人と対戦になるよ。相手が見つかるまで画面を開いたまま待ってね。</div>
@@ -443,7 +448,8 @@ var codeBox=$("codeBox"), roomCodeEl=$("roomCode"), copyBtn=$("copyBtn");
 var disconnectBtn=$("disconnectBtn"), pingBox=$("pingBox"), pingVal=$("pingVal");
 var banner=$("banner"), bannerTitle=$("bannerTitle"), bannerText=$("bannerText"), rematchBtn=$("rematchBtn");
 var countNum=$("countNum"), logEl=$("log");
-var hp1El=$("hp1"), hp2El=$("hp2"), hpNum1=$("hpNum1"), hpNum2=$("hpNum2");
+var hp1El=$("hp1"), hp2El=$("hp2"), hpNum1=$("hpNum1"), hpNum2=$("hpNum2"), hpMax1=$("hpMax1"), hpMax2=$("hpMax2");
+var bossBtn=$("bossBtn");
 var stam1El=$("stam1"), stam2El=$("stam2"), stamNum1=$("stamNum1"), stamNum2=$("stamNum2");
 var stamWrap1=$("stamWrap1"), stamWrap2=$("stamWrap2"), atkBtn=$("btnAtk");
 var p1Name=$("p1Name"), p2Name=$("p2Name"), p1Tag=$("p1Tag"), p2Tag=$("p2Tag"), vsLabel=$("vsLabel");
@@ -469,14 +475,20 @@ var RANGE=86, DMG=20, MAXHP=100;
    swing and refills STAM_REGEN per frame (~30/sec at 60fps), so mashing the
    sword runs dry after ~3 swings and the fighter must back off to recover. */
 var MAXSTAM=100, ATK_COST=30, STAM_REGEN=0.5, STAM_DELAY=36;
+var BOSS_HP=300, BOSS_DMG=25, BOSS_RANGE=118;
 
 /* ================= Fighters ================= */
-function makeFighter(x, color, dark, isP1){
+function makeFighter(x, color, dark, isP1, opts){
+  opts=opts||{};
+  var maxHp=opts.maxHp||MAXHP;
+  var maxStam=opts.maxStam||MAXSTAM;
   return {
     x:x, y:GROUND-FIGHTER_H, vx:0, vy:0, facing:isP1?1:-1,
-    hp:MAXHP, stam:MAXSTAM, stamDelay:0, onGround:true, walkPhase:0, moving:false,
+    hp:maxHp, maxHp:maxHp, stam:maxStam, maxStam:maxStam, stamDelay:0, onGround:true, walkPhase:0, moving:false,
     atkT:-1, atkHitDone:false, hurtT:0, stunT:0, invulnT:0, dead:false,
     color:color, dark:dark, isP1:isP1,
+    isBoss:!!opts.isBoss, scale:opts.scale||1, dmg:opts.dmg||DMG, range:opts.range||RANGE,
+    speedMul:opts.speedMul||1, stamRegen:opts.stamRegen||STAM_REGEN,
     tx:x, ty:GROUND-FIGHTER_H, tfacing:isP1?1:-1, tAtk:-1, remote:false
   };
 }
@@ -488,6 +500,7 @@ var mode="idle", role=null;
 var fighting=false, roundOver=false;
 var keys={};
 var cpuTimer=0, cpuDir=0, cpuAtkCd=0;
+var isBossBattle=false, bossTimer=0, bossDir=0, bossAtkCd=0, bossDashCd=0, bossPhase=1, bossPhaseAnnounced=1, bossDoubleCd=0;
 
 /* ================= Audio: BGM + SFX (all WebAudio synth) =================
    One shared AudioContext, two independent gain buses so BGM and SFX can be
@@ -658,20 +671,24 @@ refreshSndBtns();
 
 /* ================= HUD ================= */
 function refreshHUD(){
-  hp1El.style.width = Math.max(0, me.isP1?me.hp:foe.hp) + "%";
-  hp2El.style.width = Math.max(0, me.isP1?foe.hp:me.hp) + "%";
   var leftHp  = me.isP1 ? me.hp : foe.hp;
   var rightHp = me.isP1 ? foe.hp : me.hp;
-  hp1El.style.width = Math.max(0,leftHp)+"%";
-  hp2El.style.width = Math.max(0,rightHp)+"%";
+  var leftMax  = me.isP1 ? me.maxHp : foe.maxHp;
+  var rightMax = me.isP1 ? foe.maxHp : me.maxHp;
+  hp1El.style.width = Math.max(0, leftHp/leftMax*100)+"%";
+  hp2El.style.width = Math.max(0, rightHp/rightMax*100)+"%";
   hpNum1.textContent = Math.max(0,leftHp);
   hpNum2.textContent = Math.max(0,rightHp);
-  hp1El.classList.toggle("low", leftHp<=40);
-  hp2El.classList.toggle("low", rightHp<=40);
+  if(hpMax1) hpMax1.textContent = leftMax;
+  if(hpMax2) hpMax2.textContent = rightMax;
+  hp1El.classList.toggle("low", leftHp/leftMax<=0.4);
+  hp2El.classList.toggle("low", rightHp/rightMax<=0.4);
   var leftStam  = me.isP1 ? me.stam : foe.stam;
   var rightStam = me.isP1 ? foe.stam : me.stam;
-  stam1El.style.width = Math.max(0,leftStam)+"%";
-  stam2El.style.width = Math.max(0,rightStam)+"%";
+  var leftStamMax  = me.isP1 ? me.maxStam : foe.maxStam;
+  var rightStamMax = me.isP1 ? foe.maxStam : me.maxStam;
+  stam1El.style.width = Math.max(0,leftStam/leftStamMax*100)+"%";
+  stam2El.style.width = Math.max(0,rightStam/rightStamMax*100)+"%";
   stamNum1.textContent = Math.floor(Math.max(0,leftStam));
   stamNum2.textContent = Math.floor(Math.max(0,rightStam));
   stam1El.classList.toggle("low", leftStam<ATK_COST);
@@ -686,6 +703,11 @@ function refreshNames(){
     else { p1Tag.style.display=""; p1Tag.textContent="相手"; p1Tag.className="tag rival";
            p2Tag.style.display=""; p2Tag.textContent="あなた"; p2Tag.className="tag me"; }
     vsLabel.textContent="ONLINE";
+  } else if(mode==="solo" && isBossBattle){
+    p1Name.textContent="プレイヤー1"; p2Name.textContent="黒騎士ボス";
+    p1Tag.style.display=""; p1Tag.textContent="あなた"; p1Tag.className="tag me";
+    p2Tag.style.display=""; p2Tag.textContent="BOSS"; p2Tag.className="tag boss";
+    vsLabel.textContent="BOSS戦";
   } else if(mode==="solo"){
     p1Name.textContent="プレイヤー1"; p2Name.textContent="CPU";
     p1Tag.style.display=""; p1Tag.textContent="あなた"; p1Tag.className="tag me";
@@ -704,9 +726,10 @@ function resetPositions(){
   left.x=210; left.y=GROUND-FIGHTER_H; left.facing=1;
   right.x=714; right.y=GROUND-FIGHTER_H; right.facing=-1;
   [me,foe].forEach(function(f){
-    f.vx=0; f.vy=0; f.hp=MAXHP; f.stam=MAXSTAM; f.stamDelay=0; f.atkT=-1; f.hurtT=0; f.stunT=0; f.invulnT=0; f.dead=false;
+    f.vx=0; f.vy=0; f.hp=f.maxHp; f.stam=f.maxStam; f.stamDelay=0; f.atkT=-1; f.hurtT=0; f.stunT=0; f.invulnT=0; f.dead=false;
     f.tx=f.x; f.ty=f.y; f.tfacing=f.facing;
   });
+  bossPhase=1; bossPhaseAnnounced=1; bossAtkCd=30; bossDashCd=90; bossTimer=0;
   roundOver=false;
   refreshHUD();
 }
@@ -745,7 +768,11 @@ function endRound(winnerIsMe){
   sfx("ko");
   setTimeout(function(){ sfx(winnerIsMe?"win":"lose"); }, 500);
   setTimeout(function(){
-    if(winnerIsMe) showBanner("🏆 あなたの勝ち！", mode==="solo"?"CPUを倒したよ。もう一回やる？":"見事な一本。もう一回やる？", true);
+    if(isBossBattle){
+      if(winnerIsMe) showBanner("🏆 ボス撃破！！", "黒騎士を倒したよ！ HP300のボス戦クリア。もう一回挑む？", true);
+      else showBanner("ボスに倒された…", "黒騎士は強かった。HPを削るほど速くなるから、後半は特に慎重に。もう一回挑む？", true);
+    }
+    else if(winnerIsMe) showBanner("🏆 あなたの勝ち！", mode==="solo"?"CPUを倒したよ。もう一回やる？":"見事な一本。もう一回やる？", true);
     else showBanner("相手の勝ち…", mode==="solo"?"CPUに倒されちゃった。もう一回やる？":"あと少しだった。もう一回やる？", true);
   }, 650);
   log(winnerIsMe ? "ラウンド終了：あなたの勝ち" : "ラウンド終了：相手の勝ち");
@@ -791,25 +818,27 @@ function checkHit(att, def, defIsLocal){
   if(att.atkT<0 || att.atkHitDone) return;
   if(def.dead || def.stunT>0 || def.invulnT>0) return; /* no chain hits while reeling / briefly invincible */
   if(att.atkT<6 || att.atkT>16) return; /* active frames of the swing */
-  if(dist(att,def) > RANGE) return;
-  if(Math.abs(att.y-def.y) > 74) return;
+  if(dist(att,def) > (att.range||RANGE) + (def.isBoss?14:0)) return;
+  if(Math.abs(att.y-def.y) > (att.isBoss?96:74)) return;
   if(!facingToward(att,def)) return;
   att.atkHitDone=true;
   applyDamage(def, att);
   if(defIsLocal && mode==="online") sendData({k:"hp", hp:def.hp});
 }
 function applyDamage(def, att){
-  def.hp=Math.max(0, def.hp-DMG);
+  def.hp=Math.max(0, def.hp-(att.dmg||DMG));
   /* Knockback: reel back away from the attacker so every hit opens real distance.
-     dir is based on positions (not facing) so it always pushes the defender away. */
+     dir is based on positions (not facing) so it always pushes the defender away.
+     The boss is heavy: same hit barely moves it and its stun is shorter. */
   var dir = (def.x+FIGHTER_W/2) >= (att.x+FIGHTER_W/2) ? 1 : -1;
-  def.vx = dir*13.5;
-  def.vy = -4.4; def.onGround=false;
+  var kb = def.isBoss ? 0.32 : 1;
+  def.vx = dir*13.5*kb;
+  def.vy = def.isBoss ? -1.6 : -4.4; def.onGround=false;
   /* hitstun (のけぞり): defender can't move or attack while reeling */
-  def.hurtT=16;
-  def.stunT=20;
+  def.hurtT= def.isBoss ? 9 : 16;
+  def.stunT= def.isBoss ? 10 : 20;
   /* brief invincibility after a hit so a swing-spam can't chain hits */
-  def.invulnT=42;
+  def.invulnT= def.isBoss ? 26 : 42;
   /* attacker's swing also checks them slightly, widening the gap */
   if(!att.dead) att.vx = -dir*2.2;
   sfx("hit");
@@ -824,7 +853,7 @@ function applyDamage(def, att){
 /* ================= Physics / update ================= */
 function stepFighter(f, input){
   if(f.dead){ f.atkT=-1; return; }
-  var speed=4.4;
+  var speed=4.4*(f.speedMul||1);
   f.moving=false;
   var stunned = f.stunT>0; /* reeling: no walking back in, no counter-attack */
   if(input && fighting && !roundOver && !stunned){
@@ -854,7 +883,7 @@ function stepFighter(f, input){
   if(f.invulnT>0) f.invulnT--;
   /* stamina: hold while the post-swing delay runs down, then refill gradually */
   if(f.stamDelay>0) f.stamDelay--;
-  else if(f.stam<MAXSTAM) f.stam=Math.min(MAXSTAM, f.stam+STAM_REGEN);
+  else if(f.stam<f.maxStam) f.stam=Math.min(f.maxStam, f.stam+(f.stamRegen||STAM_REGEN));
 }
 function cpuThink(){
   if(!fighting || roundOver || foe.dead) return;
@@ -868,6 +897,56 @@ function cpuThink(){
   stepFighter(foe, input);
   if(foe.atkT===2) sfx("swing");
 }
+function bossThink(){
+  if(!fighting || roundOver || foe.dead) return;
+  bossTimer--; bossAtkCd--; bossDashCd--; bossDoubleCd--;
+  var ratio = foe.hp/foe.maxHp;
+  bossPhase = ratio>0.62 ? 1 : (ratio>0.3 ? 2 : 3);
+  if(bossPhase>bossPhaseAnnounced){
+    bossPhaseAnnounced=bossPhase;
+    foe.speedMul = bossPhase===2 ? 1.08 : 1.28;
+    foe.stamRegen = bossPhase===2 ? 0.65 : 0.85;
+    countNum.textContent = bossPhase===2 ? "ボスが加速した！" : "ボスが怒り狂った！！";
+    countNum.classList.add("show");
+    countNum.style.fontSize="clamp(28px,6vw,52px)";
+    setTimeout(function(){ countNum.classList.remove("show"); countNum.style.fontSize=""; }, 900);
+    sfx("ko");
+    log(bossPhase===2 ? "ボス フェーズ2：加速" : "ボス フェーズ3：激怒");
+  }
+  var c=foe.x+FIGHTER_W/2, m=me.x+FIGHTER_W/2;
+  var gap=Math.abs(c-m), dirToMe = m>c?1:-1;
+  var input={left:false,right:false,jump:false};
+  if(bossTimer<=0){
+    bossTimer = bossPhase===1 ? 16+Math.random()*14 : 10+Math.random()*10;
+    if(gap>(foe.range||BOSS_RANGE)+10) bossDir=dirToMe;
+    else if(gap<62) bossDir = Math.random()<(bossPhase===3?0.25:0.45) ? -dirToMe : 0;
+    else bossDir = Math.random()<0.75 ? dirToMe : 0;
+  }
+  /* dash attack (phase 2+): lunge from mid-range, then slash on arrival */
+  if(bossPhase>=2 && bossDashCd<=0 && gap>120 && gap<340 && foe.onGround && foe.stam>=ATK_COST){
+    foe.vx = dirToMe * (bossPhase===3?13:11);
+    foe.vy = -2.2; foe.onGround=false;
+    bossDashCd = bossPhase===3 ? 130+Math.random()*70 : 180+Math.random()*90;
+    bossAtkCd = Math.min(bossAtkCd, 14);
+    sfx("jump");
+  }
+  if(bossDir<0) input.left=true; if(bossDir>0) input.right=true;
+  /* jump-in attack in later phases */
+  if(bossPhase>=2 && gap>110 && gap<240 && foe.onGround && Math.random()<0.012) input.jump=true;
+  if(gap < (foe.range||BOSS_RANGE)-8 && bossAtkCd<=0 && foe.stam>=ATK_COST){
+    var atkChance = bossPhase===1?0.55:(bossPhase===2?0.7:0.85);
+    if(Math.random()<atkChance){
+      tryAttack(foe,false);
+      bossAtkCd = bossPhase===1 ? 42+Math.random()*22 : (bossPhase===2 ? 32+Math.random()*16 : 24+Math.random()*12);
+      /* phase 3: occasional immediate second slash */
+      if(bossPhase===3 && bossDoubleCd<=0 && Math.random()<0.4){ bossDoubleCd=90; setTimeout(function(){ if(fighting&&!roundOver&&!foe.dead&&foe.stam>=ATK_COST&&Math.abs((foe.x+FIGHTER_W/2)-(me.x+FIGHTER_W/2))<(foe.range||BOSS_RANGE)+20){ tryAttack(foe,false); if(foe.atkT===0) sfx("swing"); } }, 340); }
+    } else {
+      bossAtkCd=10;
+    }
+  }
+  stepFighter(foe, input);
+  if(foe.atkT===2) sfx("swing");
+}
 
 /* ================= Drawing ================= */
 function drawFighter(f){
@@ -876,6 +955,15 @@ function drawFighter(f){
   var isP1 = f.isP1;
   ctx.save();
   ctx.translate(cx, feet);
+  if(f.scale && f.scale!==1) ctx.scale(f.scale, f.scale);
+  if(f.isBoss && !f.dead){
+    /* dark aura */
+    ctx.save();
+    ctx.globalAlpha=0.22+0.08*Math.sin(now*3.2);
+    ctx.fillStyle="#a31621";
+    ctx.beginPath(); ctx.ellipse(0,-42,34,52,0,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
   if(f.dead){
     ctx.translate(0,6);
     ctx.rotate(f.facing*1.45);
@@ -909,6 +997,10 @@ function drawFighter(f){
   var armorLight = isP1 ? "#d7e8e6" : "#ffe9b8";
   var armorMid = isP1 ? "#9fb8b5" : "#d9b06a";
   var plumeCol = isP1 ? "#17a398" : "#f2a93b";
+  if(f.isBoss){
+    hairCol="#161114"; pantsCol="#23232e"; bootCol="#0f0f14"; capeCol="#4a0d16";
+    armorLight="#d3d8e2"; armorMid="#6e7686"; plumeCol="#e63946";
+  }
 
   ctx.rotate(lean);
   ctx.translate(0, bob);
@@ -1045,13 +1137,21 @@ function drawFighter(f){
   if(!isP1){
     ctx.beginPath(); ctx.moveTo(8,-14); ctx.quadraticCurveTo(13,-10,12,-1); ctx.quadraticCurveTo(9,-6,8,-8); ctx.closePath(); ctx.fill();
   }
+  if(f.isBoss){
+    /* horns on a dark helm instead of a headband */
+    ctx.fillStyle="#2a2e38";
+    ctx.beginPath(); ctx.moveTo(-10,-13); ctx.quadraticCurveTo(-18,-20,-16,-30); ctx.quadraticCurveTo(-11,-22,-7,-16); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(10,-13); ctx.quadraticCurveTo(18,-20,16,-30); ctx.quadraticCurveTo(11,-22,7,-16); ctx.closePath(); ctx.fill();
+    ctx.fillStyle="#11141a"; ctx.fillRect(-12,-14,24,7);
+    ctx.fillStyle="#e63946"; ctx.beginPath(); ctx.arc(0,-10.5,2.2,0,Math.PI*2); ctx.fill();
+  }
   /* headband */
-  ctx.fillStyle=primary; ctx.fillRect(-11.5,-9,23,5.2);
-  ctx.fillStyle="rgba(255,255,255,.28)"; ctx.fillRect(-11.5,-9,23,1.6);
+  if(!f.isBoss){ ctx.fillStyle=primary; ctx.fillRect(-11.5,-9,23,5.2); }
+  if(!f.isBoss){ ctx.fillStyle="rgba(255,255,255,.28)"; ctx.fillRect(-11.5,-9,23,1.6); }
   /* headband tails */
   var tailWave=Math.sin(now*5+(isP1?0:1))*2 + (moving?Math.sin(ph)*2:0);
-  ctx.strokeStyle=primary; ctx.lineWidth=3.2; ctx.lineCap="round";
-  ctx.beginPath(); ctx.moveTo(-f.facing*11,-6); ctx.quadraticCurveTo(-f.facing*16,-2+tailWave*0.4, -f.facing*15,4+tailWave); ctx.stroke();
+  if(!f.isBoss){ ctx.strokeStyle=primary; ctx.lineWidth=3.2; ctx.lineCap="round";
+  ctx.beginPath(); ctx.moveTo(-f.facing*11,-6); ctx.quadraticCurveTo(-f.facing*16,-2+tailWave*0.4, -f.facing*15,4+tailWave); ctx.stroke(); }
   /* eyes - look toward facing */
   var look=f.facing*2.2;
   var blink = (Math.sin(now*0.7+(isP1?0:2))>0.985) ? 0.15 : 1;
@@ -1112,11 +1212,12 @@ function drawFighter(f){
   var bl=ctx.createLinearGradient(-3,0,3,0);
   bl.addColorStop(0,"#9aa8b5"); bl.addColorStop(0.42,"#eef4f8"); bl.addColorStop(0.58,"#ffffff"); bl.addColorStop(1,"#8d9aa8");
   ctx.fillStyle=bl;
+  var bLen = f.isBoss ? 78 : 60, bW = f.isBoss ? 4.6 : 3.2;
   ctx.beginPath();
-  ctx.moveTo(-3.2,-11); ctx.lineTo(3.2,-11); ctx.lineTo(2.4,-52); ctx.lineTo(0,-60); ctx.lineTo(-2.4,-52); ctx.closePath(); ctx.fill();
+  ctx.moveTo(-bW,-11); ctx.lineTo(bW,-11); ctx.lineTo(bW*0.75,-(bLen-8)); ctx.lineTo(0,-bLen); ctx.lineTo(-bW*0.75,-(bLen-8)); ctx.closePath(); ctx.fill();
   ctx.strokeStyle="rgba(70,85,100,.55)"; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(0,-12); ctx.lineTo(0,-50); ctx.stroke();
-  ctx.fillStyle="rgba(255,255,255,.75)"; ctx.fillRect(-2,-48,1.2,30);
+  ctx.beginPath(); ctx.moveTo(0,-12); ctx.lineTo(0,-(bLen-10)); ctx.stroke();
+  ctx.fillStyle="rgba(255,255,255,.75)"; ctx.fillRect(-2,-(bLen-12),1.2,30);
   ctx.restore();
   ctx.restore();
 
@@ -1128,13 +1229,13 @@ function drawFighter(f){
     ctx.globalAlpha=0.38*(1-(f.atkT-5)/12);
     ctx.strokeStyle="#ffffff"; ctx.lineWidth=11; ctx.lineCap="round";
     ctx.beginPath();
-    var ccx=f.x+FIGHTER_W/2, ccy=f.y+20;
-    if(f.facing===1) ctx.arc(ccx,ccy,68,-1.55,0.75);
-    else ctx.arc(ccx,ccy,68,Math.PI-0.75,Math.PI+1.55);
+    var ccx=f.x+FIGHTER_W/2, ccy=f.y+20, arcR=(f.isBoss?98:68)*(f.scale||1);
+    if(f.facing===1) ctx.arc(ccx,ccy,arcR,-1.55,0.75);
+    else ctx.arc(ccx,ccy,arcR,Math.PI-0.75,Math.PI+1.55);
     ctx.stroke();
     ctx.globalAlpha*=0.55; ctx.strokeStyle=primary; ctx.lineWidth=5;
     ctx.beginPath();
-    if(f.facing===1) ctx.arc(ccx,ccy,60,-1.4,0.6); else ctx.arc(ccx,ccy,60,Math.PI-0.6,Math.PI+1.4);
+    if(f.facing===1) ctx.arc(ccx,ccy,arcR-8,-1.4,0.6); else ctx.arc(ccx,ccy,arcR-8,Math.PI-0.6,Math.PI+1.4);
     ctx.stroke();
     ctx.restore();
   }
@@ -1170,7 +1271,7 @@ function loop(ts){
   stepFighter(me, input);
   if(touch.jumpQueued){ touch.jumpQueued=false; if(me.onGround&&fighting&&!roundOver&&me.stunT<=0){ me.vy=-13.5; me.onGround=false; sfx("jump"); } }
 
-  if(mode==="solo"){ cpuThink(); }
+  if(mode==="solo"){ if(isBossBattle) bossThink(); else cpuThink(); }
   else if(mode==="online"){
     /* interpolate remote fighter toward last received state */
     var k=0.45;
@@ -1203,7 +1304,7 @@ function loop(ts){
   /* shadows */
   [me,foe].forEach(function(f){
     ctx.fillStyle="rgba(0,0,0,.3)";
-    ctx.beginPath(); ctx.ellipse(f.x+FIGHTER_W/2, GROUND+8, 26, 6, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(f.x+FIGHTER_W/2, GROUND+8, 26*(f.scale||1), 6*(f.scale||1), 0, 0, Math.PI*2); ctx.fill();
   });
   drawFighter(me.isP1?me:foe);
   drawFighter(me.isP1?foe:me);
@@ -1308,7 +1409,7 @@ function genCode(){
   return s;
 }
 function setLobbyEnabled(on){
-  hostBtn.disabled=!on; joinBtn.disabled=!on; soloBtn.disabled=!on; joinInput.disabled=!on; mmBtn.disabled=!on;
+  hostBtn.disabled=!on; joinBtn.disabled=!on; soloBtn.disabled=!on; if(bossBtn) bossBtn.disabled=!on; joinInput.disabled=!on; mmBtn.disabled=!on;
 }
 function cleanupPeer(){
   if(pingTimer){ clearInterval(pingTimer); pingTimer=null; }
@@ -1323,7 +1424,7 @@ function onDisconnected(reason){
   cancelRandomMatch();
   cleanupPeer();
   disconnectBtn.textContent="切断する";
-  mode="idle"; role=null; fighting=false;
+  mode="idle"; role=null; fighting=false; isBossBattle=false;
   refreshNames();
   setLobbyEnabled(true);
   codeBox.classList.remove("show");
@@ -1673,7 +1774,7 @@ joinInput.addEventListener("input", function(){ joinInput.value=joinInput.value.
 /* ================= Solo mode ================= */
 soloBtn.addEventListener("click", function(){
   cleanupPeer();
-  mode="solo"; role=null;
+  mode="solo"; role=null; isBossBattle=false;
   me = makeFighter(210,"#17a398","#0b5a54",true);
   foe = makeFighter(714,"#f2a93b","#9a6206",false);
   refreshNames();
@@ -1685,11 +1786,28 @@ soloBtn.addEventListener("click", function(){
   startCountdown();
   log("練習モード開始");
 });
+bossBtn.addEventListener("click", function(){
+  cleanupPeer();
+  mode="solo"; role=null; isBossBattle=true;
+  me = makeFighter(210,"#17a398","#0b5a54",true);
+  foe = makeFighter(690,"#a31621","#4a0810",false,{isBoss:true, maxHp:BOSS_HP, maxStam:120, dmg:BOSS_DMG, range:BOSS_RANGE, scale:1.42, speedMul:0.92, stamRegen:0.55});
+  refreshNames();
+  setStatus("on","ボス戦（黒騎士）","HP300・大型・リーチ長め。HPが減ると加速＆激怒するよ");
+  setLobbyEnabled(false);
+  disconnectBtn.style.display="";
+  disconnectBtn.textContent="ボス戦をやめる";
+  resetPositions();
+  /* boss starts a bit closer so its larger body doesn't clip the edge */
+  foe.x=660;
+  showBanner("⚔ 黒騎士が現れた！","HP300のボス戦。斬られても吹き飛びにくい相手だよ", false);
+  setTimeout(function(){ if(mode==="solo" && isBossBattle && !roundOver) startCountdown(); }, 1100);
+  log("ボス戦開始：黒騎士 HP"+BOSS_HP);
+});
 var _origDisconnect = disconnectBtn.onclick;
 disconnectBtn.addEventListener("click", function(){
   if(mode==="solo"){
     stopBGM();
-    mode="idle"; fighting=false;
+    mode="idle"; fighting=false; isBossBattle=false;
     me = makeFighter(210,"#17a398","#0b5a54",true);
     foe = makeFighter(714,"#f2a93b","#9a6206",false);
     refreshHUD();
